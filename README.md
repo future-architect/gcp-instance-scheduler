@@ -10,8 +10,8 @@ Tools that shutdown GCP Instance on your schedule.
   * Cloud Scheduler --> Pub/Sub --> CloudFunction
     * https://cloud.google.com/scheduler/docs/start-and-stop-compute-engine-instances-on-a-schedule
 * 🚧Limitation🚧
-   * Stop only、this tool does not support restart yet
-     * if you need to recover, you should restart instances manually
+   * Stop only. This tool does not support restart yet
+     * If you need to recover, you should restart instances manually
 
 
 ## Config
@@ -76,3 +76,7 @@ gcloud container clusters update <cluster-name> \
   * `gcloud functions logs read --project <project-id> --limit 50`
 * manual launch for job of scheduler
   * `gcloud beta scheduler jobs run shutdown-workday-instance`
+
+## License
+
+This project is licensed under the Apache License 2.0 License - see the [LICENSE](LICENSE) file for details
