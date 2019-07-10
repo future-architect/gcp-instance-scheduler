@@ -21,7 +21,12 @@ import (
 	"github.com/future-architect/gcp-instance-scheduler/model"
 )
 
-func Show(report *model.ShutdownReport) {
+func Show(report *model.ShutdownReport, instance_type string) {
+	log.Println("<<<<< " + instance_type + " >>>>>")
+	if report == nil {
+		log.Printf("There are no instances in %s. Skip.\n", instance_type)
+		return
+	}
 	log.Println("!REPORT!")
 	log.Println("[Shutdown Resource]")
 

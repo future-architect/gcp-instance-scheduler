@@ -51,6 +51,9 @@ func contains(instanceGroup set.Set, instanceTemplateName string) bool {
 // create instance group manager list
 func valuesIG(m map[string]compute.InstanceGroupManagersScopedList) []*compute.InstanceGroupManager {
 	var res []*compute.InstanceGroupManager
+	if m == nil {
+		return nil
+	}
 	for _, managerList := range m {
 		res = append(res, managerList.InstanceGroupManagers...)
 	}
@@ -156,6 +159,10 @@ func (r *InstanceGroupShutdownCall) ShutdownWithInterval(ctx context.Context, in
 
 	// instance group manager service
 	ms := compute.NewInstanceGroupManagersService(s)
+
+	if valuesIG(r.InstanceGroupList.Items) == nil {
+		return nil, nil
+	}
 
 	for _, manager := range valuesIG(r.InstanceGroupList.Items) {
 		// get manager zone name

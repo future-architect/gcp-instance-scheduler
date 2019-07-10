@@ -72,7 +72,7 @@ func ReceiveEvent(ctx context.Context, msg *pubsub.Message) error {
 		result = multierror.Append(result, err)
 		log.Printf("Some error occured in stopping gce instances: %v", err)
 	}
-	report.Show(rpt)
+	report.Show(rpt, "InstanceGroup")
 
 	rpt, err = operator.ComputeEngineResource(ctx, projectID).
 		FilterLabel(TargetLabel, true).
@@ -81,7 +81,7 @@ func ReceiveEvent(ctx context.Context, msg *pubsub.Message) error {
 		result = multierror.Append(result, err)
 		log.Printf("Some error occured in stopping gce instances: %v", err)
 	}
-	report.Show(rpt)
+	report.Show(rpt, "ComputeEngine")
 
 	rpt, err = operator.SQLResource(ctx, projectID).
 		FilterLabel(TargetLabel, true).
@@ -90,7 +90,7 @@ func ReceiveEvent(ctx context.Context, msg *pubsub.Message) error {
 		result = multierror.Append(result, err)
 		log.Printf("Some error occured in stopping sql instances: %v", err)
 	}
-	report.Show(rpt)
+	report.Show(rpt, "SQL")
 
 	log.Printf("done.")
 	return result

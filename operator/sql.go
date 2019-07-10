@@ -85,6 +85,10 @@ func (r *SQLShutdownCall) ShutdownWithInterval(ctx context.Context, interval tim
 		res = multierror.Append(res, err)
 	}
 
+	if r.TargetList.Items == nil {
+		return nil, nil
+	}
+
 	for _, instance := range r.TargetList.Items {
 		// do not change replica instance's activation policy
 		if instance.InstanceType == "READ_REPLICA_INSTANCE" {
