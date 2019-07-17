@@ -22,7 +22,6 @@ import (
 	"time"
 
 	"github.com/future-architect/gcp-instance-scheduler/operator"
-	"github.com/future-architect/gcp-instance-scheduler/report"
 
 	"cloud.google.com/go/pubsub"
 	"github.com/hashicorp/go-multierror"
@@ -72,7 +71,7 @@ func ReceiveEvent(ctx context.Context, msg *pubsub.Message) error {
 		result = multierror.Append(result, err)
 		log.Printf("Some error occured in stopping gce instances: %v", err)
 	}
-	report.Show(rpt, "InstanceGroup")
+	rpt.Show()
 
 	rpt, err = operator.ComputeEngineResource(ctx, projectID).
 		FilterLabel(TargetLabel, true).
@@ -81,7 +80,7 @@ func ReceiveEvent(ctx context.Context, msg *pubsub.Message) error {
 		result = multierror.Append(result, err)
 		log.Printf("Some error occured in stopping gce instances: %v", err)
 	}
-	report.Show(rpt, "ComputeEngine")
+	rpt.Show()
 
 	rpt, err = operator.SQLResource(ctx, projectID).
 		FilterLabel(TargetLabel, true).
@@ -90,7 +89,7 @@ func ReceiveEvent(ctx context.Context, msg *pubsub.Message) error {
 		result = multierror.Append(result, err)
 		log.Printf("Some error occured in stopping sql instances: %v", err)
 	}
-	report.Show(rpt, "SQL")
+	rpt.Show()
 
 	log.Printf("done.")
 	return result

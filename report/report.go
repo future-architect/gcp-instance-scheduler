@@ -21,21 +21,31 @@ import (
 	"github.com/future-architect/gcp-instance-scheduler/model"
 )
 
-func Show(report *model.ShutdownReport, instance_type string) {
-	log.Println("<<<<< " + instance_type + " >>>>>")
-	if report == nil {
-		log.Printf("There are no instances in %s. Skip.\n", instance_type)
+type ShutdownReport struct {
+	model.ShutdownReport
+}
+
+const (
+	ComputeEngine = "ComputeEngine"
+	InstanceGroup = "InstanceGroup"
+	SQL           = "SQL"
+)
+
+func (r *ShutdownReport) Show() {
+	log.Println("<<<<< " + r.InstanceType + " >>>>>")
+	if r == nil {
+		log.Printf("There are no instances in %s. Skip.\n", r.InstanceType)
 		return
 	}
 	log.Println("!REPORT!")
 	log.Println("[Shutdown Resource]")
 
-	for i, resource := range report.DoneResources {
+	for i, resource := range r.DoneResources {
 		log.Printf(">> Resouce(%v): %v\n", i+1, resource)
 	}
 
 	log.Println("[Already Shutdown Resource]")
-	for i, resource := range report.AlreadyShutdownResources {
+	for i, resource := range r.AlreadyShutdownResources {
 		log.Printf(">> Resouce(%v): %v\n", i+1, resource)
 	}
 }

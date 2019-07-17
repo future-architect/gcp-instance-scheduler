@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"github.com/future-architect/gcp-instance-scheduler/model"
+	"github.com/future-architect/gcp-instance-scheduler/report"
 
 	"github.com/hashicorp/go-multierror"
 	"golang.org/x/net/context"
@@ -74,7 +75,7 @@ func (r *SQLListCall) FilterLabel(targetLabel string, flag bool) *SQLShutdownCal
 	}
 }
 
-func (r *SQLShutdownCall) ShutdownWithInterval(ctx context.Context, interval time.Duration) (*model.ShutdownReport, error) {
+func (r *SQLShutdownCall) ShutdownWithInterval(ctx context.Context, interval time.Duration) (*report.ShutdownReport, error) {
 	var res = r.Error
 	var doneRes []string
 	var alreadyRes []string
@@ -115,8 +116,11 @@ func (r *SQLShutdownCall) ShutdownWithInterval(ctx context.Context, interval tim
 	}
 	log.Printf("Success in stopping SQL instances: Done.")
 
-	return &model.ShutdownReport{
-		DoneResources:            doneRes,
-		AlreadyShutdownResources: alreadyRes,
+	return &report.ShutdownReport{
+		ShutdownReport: model.ShutdownReport{
+			InstanceType:             report.SQL,
+			DoneResources:            doneRes,
+			AlreadyShutdownResources: alreadyRes,
+		},
 	}, res
 }

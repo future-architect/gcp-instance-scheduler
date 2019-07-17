@@ -22,6 +22,7 @@ import (
 
 	set "github.com/deckarep/golang-set"
 	"github.com/future-architect/gcp-instance-scheduler/model"
+	"github.com/future-architect/gcp-instance-scheduler/report"
 	"github.com/hashicorp/go-multierror"
 	"golang.org/x/net/context"
 	"google.golang.org/api/compute/v1"
@@ -146,7 +147,7 @@ func (r *InstanceGroupListCall) FilterLabel(targetLabel string, flag bool) *Inst
 	}
 }
 
-func (r *InstanceGroupShutdownCall) ShutdownWithInterval(ctx context.Context, interval time.Duration) (*model.ShutdownReport, error) {
+func (r *InstanceGroupShutdownCall) ShutdownWithInterval(ctx context.Context, interval time.Duration) (*report.ShutdownReport, error) {
 	var res = r.Error
 	var doneRes []string
 	var alreadyRes []string
@@ -203,8 +204,11 @@ func (r *InstanceGroupShutdownCall) ShutdownWithInterval(ctx context.Context, in
 	}
 	log.Printf("Success in stopping InstanceGroup: Done.")
 
-	return &model.ShutdownReport{
-		DoneResources:            doneRes,
-		AlreadyShutdownResources: alreadyRes,
+	return &report.ShutdownReport{
+		ShutdownReport: model.ShutdownReport{
+			InstanceType:             report.InstanceGroup,
+			DoneResources:            doneRes,
+			AlreadyShutdownResources: alreadyRes,
+		},
 	}, res
 }

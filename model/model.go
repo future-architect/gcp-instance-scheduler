@@ -16,6 +16,8 @@
 package model
 
 type ShutdownReport struct {
+	// InstanceGroup, ComputeEngine, SQL
+	InstanceType string
 	// shutdown resource names
 	DoneResources []string
 	// already stopped resource names
