@@ -85,8 +85,9 @@ func (r *SQLShutdownCall) ShutdownWithInterval(ctx context.Context, interval tim
 		res = multierror.Append(res, err)
 	}
 
-	if r.TargetList.Items == nil {
-		return nil, nil
+	// error bundle before executing stop call
+	if res != nil {
+		return nil, res
 	}
 
 	for _, instance := range r.TargetList.Items {

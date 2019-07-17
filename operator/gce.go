@@ -42,7 +42,7 @@ type GCEShutdownCall struct {
 // create instance list
 func valuesGCE(m map[string]compute.InstancesScopedList) []*compute.Instance {
 	var res []*compute.Instance
-	if m == nil {
+	if len(m) == 0 {
 		return nil
 	}
 	for _, instanceList := range m {
@@ -98,8 +98,9 @@ func (r *GCEShutdownCall) ShutdownWithInterval(ctx context.Context, interval tim
 		res = multierror.Append(res, err)
 	}
 
-	if valuesGCE(r.TargetList.Items) == nil {
-		return nil, nil
+	// error bundle before executing stop call
+	if res != nil {
+		return nil, res
 	}
 
 	for _, instance := range valuesGCE(r.TargetList.Items) {
