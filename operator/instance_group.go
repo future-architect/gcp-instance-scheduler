@@ -52,10 +52,10 @@ func contains(instanceGroup set.Set, instanceTemplateName string) bool {
 // create instance group manager list
 func valuesIG(m map[string]compute.InstanceGroupManagersScopedList) []*compute.InstanceGroupManager {
 	var res []*compute.InstanceGroupManager
-	if len(m) == 0 {
-		return nil
-	}
 	for _, managerList := range m {
+		if len(managerList.InstanceGroupManagers) == 0 {
+			continue
+		}
 		res = append(res, managerList.InstanceGroupManagers...)
 	}
 	return res
