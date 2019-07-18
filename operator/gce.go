@@ -43,10 +43,10 @@ type GCEShutdownCall struct {
 // create instance list
 func valuesGCE(m map[string]compute.InstancesScopedList) []*compute.Instance {
 	var res []*compute.Instance
-	if len(m) == 0 {
-		return nil
-	}
 	for _, instanceList := range m {
+		if len(instanceList.Instances) == 0 {
+			continue
+		}
 		res = append(res, instanceList.Instances...)
 	}
 	return res

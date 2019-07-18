@@ -111,7 +111,7 @@ func (r *SQLShutdownCall) ShutdownWithInterval(ctx context.Context, interval tim
 		if err != nil {
 			res = multierror.Append(res, err)
 		}
-		alreadyRes = append(alreadyRes, instance.Name)
+		doneRes = append(doneRes, instance.Name)
 		time.Sleep(interval)
 	}
 	log.Printf("Success in stopping SQL instances: Done.")
