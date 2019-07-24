@@ -43,6 +43,9 @@ type GCEShutdownCall struct {
 func valuesGCE(m map[string]compute.InstancesScopedList) []*compute.Instance {
 	var res []*compute.Instance
 	for _, instanceList := range m {
+		if len(instanceList.Instances) == 0 {
+			continue
+		}
 		res = append(res, instanceList.Instances...)
 	}
 	return res
@@ -85,6 +88,10 @@ func (r *GCEListCall) FilterLabel(targetLabel string, flag bool) *GCEShutdownCal
 }
 
 func (r *GCEShutdownCall) ShutdownWithInterval(ctx context.Context, interval time.Duration) (*model.ShutdownReport, error) {
+	if r.Error != nil {
+		return nil, r.Error
+	}
+
 	var res = r.Error
 	var doneRes []string
 	var alreadyRes []string
@@ -119,6 +126,7 @@ func (r *GCEShutdownCall) ShutdownWithInterval(ctx context.Context, interval tim
 	log.Printf("Success in stopping GCE instances: Done.")
 
 	return &model.ShutdownReport{
+		InstanceType:             model.ComputeEngine,
 		DoneResources:            doneRes,
 		AlreadyShutdownResources: alreadyRes,
 	}, res

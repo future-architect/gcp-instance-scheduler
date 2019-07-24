@@ -52,6 +52,9 @@ func contains(instanceGroup set.Set, instanceTemplateName string) bool {
 func valuesIG(m map[string]compute.InstanceGroupManagersScopedList) []*compute.InstanceGroupManager {
 	var res []*compute.InstanceGroupManager
 	for _, managerList := range m {
+		if len(managerList.InstanceGroupManagers) == 0 {
+			continue
+		}
 		res = append(res, managerList.InstanceGroupManagers...)
 	}
 	return res
@@ -144,6 +147,10 @@ func (r *InstanceGroupListCall) FilterLabel(targetLabel string, flag bool) *Inst
 }
 
 func (r *InstanceGroupShutdownCall) ShutdownWithInterval(ctx context.Context, interval time.Duration) (*model.ShutdownReport, error) {
+	if r.Error != nil {
+		return nil, r.Error
+	}
+
 	var res = r.Error
 	var doneRes []string
 	var alreadyRes []string
@@ -196,6 +203,7 @@ func (r *InstanceGroupShutdownCall) ShutdownWithInterval(ctx context.Context, in
 	log.Printf("Success in stopping InstanceGroup: Done.")
 
 	return &model.ShutdownReport{
+		InstanceType:             model.InstanceGroup,
 		DoneResources:            doneRes,
 		AlreadyShutdownResources: alreadyRes,
 	}, res

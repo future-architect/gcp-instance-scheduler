@@ -15,9 +15,37 @@
  */
 package model
 
+import (
+	"log"
+)
+
 type ShutdownReport struct {
+	// InstanceGroup, ComputeEngine, SQL
+	InstanceType string
 	// shutdown resource names
 	DoneResources []string
 	// already stopped resource names
 	AlreadyShutdownResources []string
+}
+
+const (
+	ComputeEngine = "ComputeEngine"
+	InstanceGroup = "InstanceGroup"
+	SQL           = "SQL"
+)
+
+func (r *ShutdownReport) Show() {
+	log.Println("<<<<< " + r.InstanceType + " >>>>>")
+
+	log.Println("!REPORT!")
+	log.Println("[Shutdown Resource]")
+
+	for i, resource := range r.DoneResources {
+		log.Printf(">> Resouce(%v): %v\n", i+1, resource)
+	}
+
+	log.Println("[Already Shutdown Resource]")
+	for i, resource := range r.AlreadyShutdownResources {
+		log.Printf(">> Resouce(%v): %v\n", i+1, resource)
+	}
 }
