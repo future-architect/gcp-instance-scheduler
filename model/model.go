@@ -36,10 +36,7 @@ const (
 
 func (r *ShutdownReport) Show() {
 	log.Println("<<<<< " + r.InstanceType + " >>>>>")
-	if r == nil {
-		log.Printf("There are no instances in %s. Skip.\n", r.InstanceType)
-		return
-	}
+
 	log.Println("!REPORT!")
 	log.Println("[Shutdown Resource]")
 
