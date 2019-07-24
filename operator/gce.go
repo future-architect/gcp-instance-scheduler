@@ -22,7 +22,6 @@ import (
 	"time"
 
 	"github.com/future-architect/gcp-instance-scheduler/model"
-	"github.com/future-architect/gcp-instance-scheduler/report"
 	"github.com/hashicorp/go-multierror"
 	"golang.org/x/net/context"
 	"google.golang.org/api/compute/v1"
@@ -88,7 +87,11 @@ func (r *GCEListCall) FilterLabel(targetLabel string, flag bool) *GCEShutdownCal
 	}
 }
 
-func (r *GCEShutdownCall) ShutdownWithInterval(ctx context.Context, interval time.Duration) (*report.ShutdownReport, error) {
+func (r *GCEShutdownCall) ShutdownWithInterval(ctx context.Context, interval time.Duration) (*model.ShutdownReport, error) {
+	if r.Error != nil {
+		return nil, r.Error
+	}
+
 	var res = r.Error
 	var doneRes []string
 	var alreadyRes []string
@@ -97,11 +100,6 @@ func (r *GCEShutdownCall) ShutdownWithInterval(ctx context.Context, interval tim
 	computeService, err := compute.NewService(ctx)
 	if err != nil {
 		res = multierror.Append(res, err)
-	}
-
-	// error bundle before executing stop call
-	if res != nil {
-		return nil, res
 	}
 
 	for _, instance := range valuesGCE(r.TargetList.Items) {
@@ -127,11 +125,9 @@ func (r *GCEShutdownCall) ShutdownWithInterval(ctx context.Context, interval tim
 	}
 	log.Printf("Success in stopping GCE instances: Done.")
 
-	return &report.ShutdownReport{
-		ShutdownReport: model.ShutdownReport{
-			InstanceType:             report.ComputeEngine,
-			DoneResources:            doneRes,
-			AlreadyShutdownResources: alreadyRes,
-		},
+	return &model.ShutdownReport{
+		InstanceType:             model.ComputeEngine,
+		DoneResources:            doneRes,
+		AlreadyShutdownResources: alreadyRes,
 	}, res
 }
