@@ -2,9 +2,10 @@ package notice
 
 import (
 	"fmt"
+	"time"
+
 	"github.com/future-architect/gcp-instance-scheduler/model"
 	"github.com/nlopes/slack"
-	"time"
 )
 
 type slackNotifier struct {
@@ -17,9 +18,13 @@ func getDate() string {
 	return fmt.Sprintf("%d/%d/%d", year, month, day)
 }
 
-func createHeader() string {
+func createHeader(pad [4]int) string {
 	text := fmt.Sprintf("Instances Shutdown Report <%s>\n", getDate())
-	text += fmt.Sprintf("InstanceType    | Done Shutdowned | Already Shutdowned | Skipped\n")
+	text += fmt.Sprintf("%*s | %*s | %*s | %*s\n",
+		pad[0], "InstanceType",
+		pad[1], "Done Shutdown",
+		pad[2], "Already Shutdowned",
+		pad[3], "Skipped")
 	text += fmt.Sprintf("-----------------------------------------------------------------\n")
 	return text
 }
@@ -51,22 +56,21 @@ func (n *slackNotifier) postThreadInline(text, ts string) error {
 }
 
 // return timestamp to make thread bellow this message
-func (n *slackNotifier) PostReport(report []model.ShutdownReport) (string, error) {
-	pad := 13
+func (n *slackNotifier) PostReport(report []*model.ShutdownReport) (string, error) {
+	pad := [4]int{-15, -15, -18, -15}
 
-	text := createHeader()
+	text := createHeader(pad)
 
 	for _, executionResult := range report {
 		sum := executionResult.CountResource()
-		text += fmt.Sprintf("%*s | %d | %d | %d\n",
-			pad,
-			executionResult.InstanceType,
-			sum[model.Done],
-			sum[model.Already],
-			sum[model.Skipped])
+		text += fmt.Sprintf("%*s | %*d | %*d | %*d\n",
+			pad[0], executionResult.InstanceType,
+			pad[1], sum[model.Done],
+			pad[2], sum[model.Already],
+			pad[3], sum[model.Skipped])
 	}
 
-	text += fmt.Sprintf("―――――――――――――――――――――――――――――――――――――――――――――――――――――\n")
+	text += fmt.Sprintf("-----------------------------------------------------------------\n")
 
 	return n.postInline(text)
 }

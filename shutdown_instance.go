@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"github.com/future-architect/gcp-instance-scheduler/model"
+	"github.com/future-architect/gcp-instance-scheduler/notice"
 	"github.com/future-architect/gcp-instance-scheduler/operator"
 
 	"cloud.google.com/go/pubsub"
@@ -42,6 +43,8 @@ type SubscribedMessage struct {
 func ReceiveEvent(ctx context.Context, msg *pubsub.Message) error {
 
 	projectID := os.Getenv("GCP_PROJECT")
+	slackAPIToken := os.Getenv("SLACK_API_TOKEN")
+	slackChannel := os.Getenv("SLACK_CHANNEL_NAME")
 	log.Printf("Project ID: %v", projectID)
 
 	// decode the json message from Pub/Sub
@@ -98,6 +101,13 @@ func ReceiveEvent(ctx context.Context, msg *pubsub.Message) error {
 	rpt.Show()
 
 	log.Printf("done.")
+
+	_, err = notice.NewSlackNotifier(slackAPIToken, slackChannel).PostReport(report)
+	if err != nil {
+		result = multierror.Append(result, err)
+		log.Fatal("Error in Slack notification:", err)
+	}
+
 	return result
 }
 
