@@ -19,6 +19,20 @@ import (
 	"log"
 )
 
+const (
+	ComputeEngine = "ComputeEngine"
+	InstanceGroup = "InstanceGroup"
+	SQL           = "SQL"
+)
+
+type ResourceState int
+
+const (
+	Done ResourceState = iota
+	Already
+	Skipped
+)
+
 type ShutdownReport struct {
 	// InstanceGroup, ComputeEngine, SQL
 	InstanceType string
@@ -26,13 +40,9 @@ type ShutdownReport struct {
 	DoneResources []string
 	// already stopped resource names
 	AlreadyShutdownResources []string
+	// skipped resource name
+	SkippedResources []string
 }
-
-const (
-	ComputeEngine = "ComputeEngine"
-	InstanceGroup = "InstanceGroup"
-	SQL           = "SQL"
-)
 
 func (r *ShutdownReport) Show() {
 	log.Println("<<<<< " + r.InstanceType + " >>>>>")
@@ -48,4 +58,14 @@ func (r *ShutdownReport) Show() {
 	for i, resource := range r.AlreadyShutdownResources {
 		log.Printf(">> Resouce(%v): %v\n", i+1, resource)
 	}
+}
+
+func (r *ShutdownReport) CountResource() [3]int {
+	var counts [3]int
+
+	counts[Done] = len(r.DoneResources)
+	counts[Already] = len(r.AlreadyShutdownResources)
+	counts[Skipped] = len(r.SkippedResources)
+
+	return counts
 }
