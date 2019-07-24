@@ -21,6 +21,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/future-architect/gcp-instance-scheduler/model"
 	"github.com/future-architect/gcp-instance-scheduler/operator"
 
 	"cloud.google.com/go/pubsub"
@@ -53,6 +54,8 @@ func ReceiveEvent(ctx context.Context, msg *pubsub.Message) error {
 	// for multierror
 	var result error
 
+	var report []*model.ShutdownReport
+
 	if err := operator.SetLabelNodePoolSize(ctx, projectID, TargetLabel, ShutdownInterval); err != nil {
 		result = multierror.Append(result, err)
 		log.Printf("Error in setting labels on GKE cluster: %v", err)
@@ -71,6 +74,7 @@ func ReceiveEvent(ctx context.Context, msg *pubsub.Message) error {
 		result = multierror.Append(result, err)
 		log.Printf("Some error occured in stopping gce instances: %v", err)
 	}
+	report = append(report, rpt)
 	rpt.Show()
 
 	rpt, err = operator.ComputeEngineResource(ctx, projectID).
@@ -80,6 +84,7 @@ func ReceiveEvent(ctx context.Context, msg *pubsub.Message) error {
 		result = multierror.Append(result, err)
 		log.Printf("Some error occured in stopping gce instances: %v", err)
 	}
+	report = append(report, rpt)
 	rpt.Show()
 
 	rpt, err = operator.SQLResource(ctx, projectID).
@@ -89,6 +94,7 @@ func ReceiveEvent(ctx context.Context, msg *pubsub.Message) error {
 		result = multierror.Append(result, err)
 		log.Printf("Some error occured in stopping sql instances: %v", err)
 	}
+	report = append(report, rpt)
 	rpt.Show()
 
 	log.Printf("done.")
