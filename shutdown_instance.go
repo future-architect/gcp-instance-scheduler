@@ -54,7 +54,7 @@ func ReceiveEvent(ctx context.Context, msg *pubsub.Message) error {
 	// for multierror
 	var result error
 
-	var report []model.ShutdownReportList
+	var report []*model.ShutdownReport
 
 	if err := operator.SetLabelNodePoolSize(ctx, projectID, TargetLabel, ShutdownInterval); err != nil {
 		result = multierror.Append(result, err)

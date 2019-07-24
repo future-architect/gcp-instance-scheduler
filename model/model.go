@@ -25,10 +25,10 @@ const (
 	SQL           = "SQL"
 )
 
-type ResourceState int
+type ExecState int
 
 const (
-	Done ResourceState = iota
+	Done ExecState = iota
 	Already
 	Skipped
 )
