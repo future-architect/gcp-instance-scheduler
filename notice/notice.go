@@ -2,8 +2,8 @@ package notice
 
 import (
 	"fmt"
-	"time"
 	"reflect"
+	"time"
 
 	"github.com/future-architect/gcp-instance-scheduler/model"
 	"github.com/nlopes/slack"
@@ -22,25 +22,18 @@ func getDate() string {
 func createHeader(pad map[string]int) string {
 	text := fmt.Sprintf("Instances Shutdown Report <%s>\n", getDate())
 
-	for i, fieldName := range getFieldNameList(&model.ShutdownReport{}) {
-		text += fmt.Sprintf("%*v", pad[fieldName], fieldName)
-		if i != 0 {
-			text += " | "
+	fieldList := getFieldNameList(&model.ShutdownReport{})
+	for i := 0; i < len(fieldList); i++ {
+		fieldName := fieldList[i]
+		if i == len(fieldList)-1 {
+			text += fmt.Sprintf("%*v\n", pad[fieldName], fieldName)
+			break
 		}
+		text += fmt.Sprintf("%*v | ", pad[fieldName], fieldName)
 	}
-	text += "\n"
 
-//	// to get status name
-//	statusName := reflect.ValueOf(&model.ShutdownReport{}).Type()
-//
-//	for i := 1; i < statusName.NumField() - 1; i++ {
-//		status := statusName.Field(i).Name
-//		text += fmt.Sprintf("%*s | ", pad[status], status)
-//	}
-//	lastStatus := statusName.Field(statusName.NumField()-1).Name
-//	text += fmt.Sprintf("%s\n", pad[lastStatus], lastStatus)
+	text += fmt.Sprintf("-------------------------------------------------------------------------------\n")
 
-	text += fmt.Sprintf("-----------------------------------------------------------------\n")
 	return text
 }
 
@@ -49,15 +42,13 @@ func createDetailReport(r *model.ShutdownReport) string {
 	pad := -25
 
 	// fiels values of model.ShutdownReport
-	resultList := reflect.ValueOf(r)
+	resultVal := reflect.Indirect(reflect.ValueOf(r))
 	// field names of model.ShutdownReport
-	statusName := resultList.Type()
+	statusType := getFieldNameList(&model.ShutdownReport{})
 
-	text += fmt.Sprintf("%s\n", statusName.Field(0).Name)
-
-	for i := 1; i < statusName.NumField(); i++ {
-		status := statusName.Field(i).Name
-		for _, resource := range resultList.FieldByName(status).Interface().([]string) {
+	for i := 1; i < len(statusType); i++ {
+		status := statusType[i]
+		for _, resource := range resultVal.FieldByName(status).Interface().([]string) {
 			text += fmt.Sprintf("%*s | %s\n", pad, status, resource)
 		}
 	}
@@ -65,13 +56,13 @@ func createDetailReport(r *model.ShutdownReport) string {
 	return text
 }
 
-// return struct 
-func getFieldNameList(i interface{}) []string {
+// return struct
+func getFieldNameList(e interface{}) []string {
 	var fieldName []string
 
-	fieldTypes := reflect.ValueOf(i).Type()
-	for i := 0; i < fieldTypes.NumField(); i++ {
-		fieldName = append(fieldName, fieldTypes.Field(i).Name)
+	fieldVals := reflect.Indirect(reflect.ValueOf(e))
+	for i := 0; i < fieldVals.NumField(); i++ {
+		fieldName = append(fieldName, fieldVals.Type().Field(i).Name)
 	}
 
 	return fieldName
@@ -106,29 +97,25 @@ func (n *slackNotifier) postThreadInline(text, ts string) error {
 // return timestamp to make thread bellow this message
 func (n *slackNotifier) PostReport(report []*model.ShutdownReport) (string, error) {
 	pad := map[string]int{
-		"InstanceType": -15,
-		"DoneResources": -15,
+		"InstanceType":             -15,
+		"DoneResources":            -15,
 		"AlreadyShutdownResources": -25,
-		"SkipResources": -15,
+		"SkipResources":            -15,
 	}
 
 	text := createHeader(pad)
 
 	for _, execResult := range report {
 		sum := execResult.CountResource()
-		statusList := getFieldNameList(&model.ShutdownReport{})
-		for i := 0; i < len(statusList); i++ {
-			status := statusList[i]
-			if i == 0 {
-				text += fmt.Sprintf("%*s | ", pad[status], status)
-			} else {
-				text += fmt.Sprintf(" %*d", pad[status], sum[i])
-			}
-		}
+		text += fmt.Sprintf("%*s | %*d | %*d | %*d",
+			pad["InstanceType"], execResult.InstanceType,
+			pad["DoneResources"], sum[model.Done],
+			pad["AlreadyShutdownResources"], sum[model.Already],
+			pad["SkipResources"], sum[model.Skip])
 		text += "\n"
 	}
 
-	text += fmt.Sprintf("-----------------------------------------------------------------\n")
+	text += fmt.Sprintf("-------------------------------------------------------------------------------\n")
 
 	return n.postInline(text)
 }
