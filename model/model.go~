@@ -25,10 +25,17 @@ const (
 	SQL           = "SQL"
 )
 
+<<<<<<< HEAD
+type ExecState int
+
+const (
+	Done ExecState = iota
+=======
 type ResourceState int
 
 const (
 	Done ResourceState = iota
+>>>>>>> 7d24941e522c4c1f885a8943bb9b60887545ae38
 	Already
 	Skipped
 )
