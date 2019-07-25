@@ -28,7 +28,8 @@ const (
 type ResourceState int
 
 const (
-	Done ResourceState = iota
+	_ ResourceState = iota
+	Done
 	Already
 	Skip
 )
@@ -60,8 +61,8 @@ func (r *ShutdownReport) Show() {
 	}
 }
 
-func (r *ShutdownReport) CountResource() [3]int {
-	var counts [3]int
+func (r *ShutdownReport) CountResource() [4]int {
+	var counts [4]int
 
 	counts[Done] = len(r.DoneResources)
 	counts[Already] = len(r.AlreadyShutdownResources)
