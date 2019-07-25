@@ -30,7 +30,7 @@ type ResourceState int
 const (
 	Done ResourceState = iota
 	Already
-	Skipped
+	Skip
 )
 
 type ShutdownReport struct {
@@ -41,7 +41,7 @@ type ShutdownReport struct {
 	// already stopped resource names
 	AlreadyShutdownResources []string
 	// skipped resource name
-	SkippedResources []string
+	SkipResources []string
 }
 
 func (r *ShutdownReport) Show() {
@@ -65,7 +65,7 @@ func (r *ShutdownReport) CountResource() [3]int {
 
 	counts[Done] = len(r.DoneResources)
 	counts[Already] = len(r.AlreadyShutdownResources)
-	counts[Skipped] = len(r.SkippedResources)
+	counts[Skip] = len(r.SkipResources)
 
 	return counts
 }
