@@ -102,10 +102,19 @@ func ReceiveEvent(ctx context.Context, msg *pubsub.Message) error {
 
 	log.Printf("done.")
 
-	_, err = notice.NewSlackNotifier(slackAPIToken, slackChannel).PostReport(report)
+	notifier := notice.NewSlackNotifier(slackAPIToken, slackChannel)
+
+	parentTS, err := notifier.PostReport(report)
 	if err != nil {
 		result = multierror.Append(result, err)
 		log.Fatal("Error in Slack notification:", err)
+	}
+
+	for _, res := range report {
+		if err := notifier.PostReportThread(parentTS, res); err != nil {
+			result = multierror.Append(result, err)
+			log.Fatal("Error in Slack notification (thread):", err)
+		}
 	}
 
 	return result

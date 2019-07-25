@@ -92,12 +92,10 @@ func (n *slackNotifier) PostReport(report []*model.ShutdownReport) (string, erro
 	return n.postInline(text)
 }
 
-func (n *slackNotifier) PostReportThread(parentTS string, report []*model.ShutdownReport) error {
+func (n *slackNotifier) PostReportThread(parentTS string, report *model.ShutdownReport) error {
 	var text string
-	for _, execResult := range report {
-		text += fmt.Sprintf("[ %s ]\n", execResult.InstanceType)
-		text += createDetailReport(execResult)
-	}
+	text += fmt.Sprintf("[ %s ]\n", report.InstanceType)
+	text += createDetailReport(report)
 
 	return n.postThreadInline(text, parentTS)
 }
