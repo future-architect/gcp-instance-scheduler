@@ -104,7 +104,7 @@ func ReceiveEvent(ctx context.Context, msg *pubsub.Message) error {
 
 	notifier := notice.NewSlackNotifier(slackAPIToken, slackChannel)
 
-	parentTS, err := notifier.PostReport(report)
+	parentTS, err := notifier.PostReport(report, projectID)
 	if err != nil {
 		result = multierror.Append(result, err)
 		log.Fatal("Error in Slack notification:", err)

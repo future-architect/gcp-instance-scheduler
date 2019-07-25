@@ -25,17 +25,6 @@ const (
 	SQL           = "SQL"
 )
 
-<<<<<<< HEAD
-type ExecState int
-
-const (
-	Done ExecState = iota
-	Already
-	Skip
-)
-
-=======
->>>>>>> Modify data structure
 type ShutdownReport struct {
 	// InstanceGroup, ComputeEngine, SQL
 	InstanceType string
@@ -64,11 +53,9 @@ func (r *ShutdownReport) Show() {
 }
 
 func (r *ShutdownReport) CountResource() map[string]int {
-	var counts map[string]int
-
-	counts["DoneResources"] = len(r.DoneResources)
-	counts["AlreadyShutdownResources"] = len(r.AlreadyShutdownResources)
-	counts["SkipResources"] = len(r.SkipResources)
-
-	return counts
+	return map[string]int{
+		"DoneResources":            len(r.DoneResources),
+		"AlreadyShutdownResources": len(r.AlreadyShutdownResources),
+		"SkipResources":            len(r.SkipResources),
+	}
 }

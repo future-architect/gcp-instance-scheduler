@@ -19,8 +19,8 @@ func getDate() string {
 	return fmt.Sprintf("%d/%d/%d", year, month, day)
 }
 
-func createHeader(pad map[string]int) string {
-	text := fmt.Sprintf("Instances Shutdown Report <%s>\n", getDate())
+func createHeader(pad map[string]int, project string) string {
+	text := fmt.Sprintf("[%s] Instances Shutdown Report <%s>\n", project, getDate())
 
 	fieldList := getFieldNameList(&model.ShutdownReport{})
 	for i := 0; i < len(fieldList); i++ {
@@ -29,7 +29,7 @@ func createHeader(pad map[string]int) string {
 			text += fmt.Sprintf("%*v\n", pad[fieldName], fieldName)
 			break
 		}
-		text += fmt.Sprintf("%*v | ", pad[fieldName], fieldName)
+		text += fmt.Sprintf("%*v| ", pad[fieldName], fieldName)
 	}
 
 	text += fmt.Sprintf("-------------------------------------------------------------------------------\n")
@@ -41,13 +41,14 @@ func createDetailReport(r *model.ShutdownReport) string {
 	var text string
 	pad := -25
 
-	// fiels values of model.ShutdownReport
+	// fiels values
 	resultVal := reflect.Indirect(reflect.ValueOf(r))
 	// field names of model.ShutdownReport
 	statusType := getFieldNameList(&model.ShutdownReport{})
 
 	for i := 1; i < len(statusType); i++ {
 		status := statusType[i]
+		// pick up instance name from field value
 		for _, resource := range resultVal.FieldByName(status).Interface().([]string) {
 			text += fmt.Sprintf("%*s | %s\n", pad, status, resource)
 		}
@@ -95,24 +96,25 @@ func (n *slackNotifier) postThreadInline(text, ts string) error {
 }
 
 // return timestamp to make thread bellow this message
-func (n *slackNotifier) PostReport(report []*model.ShutdownReport) (string, error) {
-	padDegree := map[string]int{
+func (n *slackNotifier) PostReport(report []*model.ShutdownReport, project string) (string, error) {
+	pad := map[string]int{
 		"InstanceType":             -15,
 		"DoneResources":            -15,
 		"AlreadyShutdownResources": -25,
 		"SkipResources":            -15,
 	}
 
-	text := createHeader(padDegree)
+	text := createHeader(pad, project)
 
 	for _, execResult := range report {
 		sum := execResult.CountResource()
+		stateList := getFieldNameList(&model.ShutdownReport{})
 
-		for resourceState, pad := range padDegree {
+		for _, resourceState := range stateList {
 			if resourceState == "InstanceType" {
-				text += fmt.Sprintf("%*s ", pad, execResult.InstanceType)
+				text += fmt.Sprintf("%*s", pad[resourceState], execResult.InstanceType)
 			} else {
-				text += fmt.Sprintf("| %*d", pad, sum[resourceState])
+				text += fmt.Sprintf("| %*d", pad[resourceState], sum[resourceState])
 			}
 		}
 		text += "\n"
