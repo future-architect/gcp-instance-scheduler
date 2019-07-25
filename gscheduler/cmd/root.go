@@ -61,6 +61,19 @@ var rootCmd = &cobra.Command{
 			return err
 		}
 
+		project, err := cmd.PersistentFlags().GetString("project")
+		if err != nil {
+			return err
+		}
+
+		if len(project) == 0 {
+			return fmt.Errorf("specify argument: project")
+		}
+
+		if err := os.Setenv("GCP_PROJECT", project); err != nil {
+			return err
+		}
+
 		return gscheduler.ReceiveEvent(context.Background(), pubMsg)
 	},
 }
@@ -82,6 +95,8 @@ func init() {
 	// will be global for your application.
 
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.gscheduler.yaml)")
+
+	rootCmd.PersistentFlags().String("project", "", "Satisfied: project ID")
 
 	// Cobra also supports local flags, which will only run
 	// when this action is called directly.
