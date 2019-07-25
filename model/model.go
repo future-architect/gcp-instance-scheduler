@@ -25,15 +25,6 @@ const (
 	SQL           = "SQL"
 )
 
-type ResourceState int
-
-const (
-	_ ResourceState = iota
-	Done
-	Already
-	Skip
-)
-
 type ShutdownReport struct {
 	// InstanceGroup, ComputeEngine, SQL
 	InstanceType string
@@ -61,12 +52,12 @@ func (r *ShutdownReport) Show() {
 	}
 }
 
-func (r *ShutdownReport) CountResource() [4]int {
-	var counts [4]int
+func (r *ShutdownReport) CountResource() map[string]int {
+	var counts map[string]int
 
-	counts[Done] = len(r.DoneResources)
-	counts[Already] = len(r.AlreadyShutdownResources)
-	counts[Skip] = len(r.SkipResources)
+	counts["DoneResources"] = len(r.DoneResources)
+	counts["AlreadyShutdownResources"] = len(r.AlreadyShutdownResources)
+	counts["SkipResources"] = len(r.SkipResources)
 
 	return counts
 }

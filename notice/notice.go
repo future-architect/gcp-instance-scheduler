@@ -96,22 +96,25 @@ func (n *slackNotifier) postThreadInline(text, ts string) error {
 
 // return timestamp to make thread bellow this message
 func (n *slackNotifier) PostReport(report []*model.ShutdownReport) (string, error) {
-	pad := map[string]int{
+	padDegree := map[string]int{
 		"InstanceType":             -15,
 		"DoneResources":            -15,
 		"AlreadyShutdownResources": -25,
 		"SkipResources":            -15,
 	}
 
-	text := createHeader(pad)
+	text := createHeader(padDegree)
 
 	for _, execResult := range report {
 		sum := execResult.CountResource()
-		text += fmt.Sprintf("%*s | %*d | %*d | %*d",
-			pad["InstanceType"], execResult.InstanceType,
-			pad["DoneResources"], sum[model.Done],
-			pad["AlreadyShutdownResources"], sum[model.Already],
-			pad["SkipResources"], sum[model.Skip])
+
+		for resourceState, pad := range padDegree {
+			if resourceState == "InstanceType" {
+				text += fmt.Sprintf("%*s ", pad, execResult.InstanceType)
+			} else {
+				text += fmt.Sprintf("| %*d", pad, sum[resourceState])
+			}
+		}
 		text += "\n"
 	}
 
