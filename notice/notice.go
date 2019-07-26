@@ -19,8 +19,13 @@ func getDate() string {
 	return fmt.Sprintf("%d/%d/%d", year, month, day)
 }
 
+<<<<<<< HEAD
 func createHeader(pad map[string]int, project string) string {
 	text := fmt.Sprintf("[%s] Instances Shutdown Report <%s>\n", project, getDate())
+=======
+func createHeader(pad map[string]int) string {
+	text := fmt.Sprintf("Instances Shutdown Report <%s>\n", getDate())
+>>>>>>> 38ab6ae64a94be0fdc6b633f0a806a7f71d7f6fe
 
 	fieldList := getFieldNameList(&model.ShutdownReport{})
 	for i := 0; i < len(fieldList); i++ {
@@ -41,7 +46,7 @@ func createDetailReport(r *model.ShutdownReport) string {
 	var text string
 	pad := -25
 
-	// fiels values
+	// fiels values of model.ShutdownReport
 	resultVal := reflect.Indirect(reflect.ValueOf(r))
 	// field names of model.ShutdownReport
 	statusType := getFieldNameList(&model.ShutdownReport{})
