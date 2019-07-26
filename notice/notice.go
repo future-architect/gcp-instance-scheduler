@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/future-architect/gcp-instance-scheduler/model"
+	"github.com/future-architect/gcp-instance-scheduler/report"
 	"github.com/nlopes/slack"
 )
 
@@ -19,49 +20,6 @@ func getDate() string {
 	return fmt.Sprintf("%d/%d/%d", year, month, day)
 }
 
-<<<<<<< HEAD
-func createHeader(pad map[string]int, project string) string {
-	text := fmt.Sprintf("[%s] Instances Shutdown Report <%s>\n", project, getDate())
-=======
-func createHeader(pad map[string]int) string {
-	text := fmt.Sprintf("Instances Shutdown Report <%s>\n", getDate())
->>>>>>> 38ab6ae64a94be0fdc6b633f0a806a7f71d7f6fe
-
-	fieldList := getFieldNameList(&model.ShutdownReport{})
-	for i := 0; i < len(fieldList); i++ {
-		fieldName := fieldList[i]
-		if i == len(fieldList)-1 {
-			text += fmt.Sprintf("%*v\n", pad[fieldName], fieldName)
-			break
-		}
-		text += fmt.Sprintf("%*v| ", pad[fieldName], fieldName)
-	}
-
-	text += fmt.Sprintf("-------------------------------------------------------------------------------\n")
-
-	return text
-}
-
-func createDetailReport(r *model.ShutdownReport) string {
-	var text string
-	pad := -25
-
-	// fiels values of model.ShutdownReport
-	resultVal := reflect.Indirect(reflect.ValueOf(r))
-	// field names of model.ShutdownReport
-	statusType := getFieldNameList(&model.ShutdownReport{})
-
-	for i := 1; i < len(statusType); i++ {
-		status := statusType[i]
-		// pick up instance name from field value
-		for _, resource := range resultVal.FieldByName(status).Interface().([]string) {
-			text += fmt.Sprintf("%*s | %s\n", pad, status, resource)
-		}
-	}
-
-	return text
-}
-
 // return struct
 func getFieldNameList(e interface{}) []string {
 	var fieldName []string
@@ -72,6 +30,37 @@ func getFieldNameList(e interface{}) []string {
 	}
 
 	return fieldName
+}
+
+// return field value greped by name
+func getFieldValue(e interface{}, field string) interface{} {
+	values := reflect.Indirect(reflect.ValueOf(e))
+	return values.FieldByName(field).Interface()
+}
+
+func createHeader(pad map[string]int, project string) string {
+	text := fmt.Sprintf("[Project: %s] Instances Shutdown Report <%s>\n", project, getDate())
+
+	fieldList := getFieldNameList(&model.ShutdownReport{})
+	for i := 0; i < len(fieldList); i++ {
+		fieldName := fieldList[i]
+		if i == len(fieldList)-1 {
+			text += fmt.Sprintf("%*v\n", pad[fieldName], fieldName)
+			break
+		}
+		text += fmt.Sprintf("%*v | ", pad[fieldName], fieldName)
+	}
+
+	text += fmt.Sprintf("-------------------------------------------------------------------------------\n")
+
+	return text
+}
+
+func createHeaderDetail(instanceType string, pad int) string {
+	text := fmt.Sprintf("[ %s ]\n", instanceType)
+	text += fmt.Sprintf("%*s | %s\n", pad, "Status", "Instance Name")
+	text += fmt.Sprintf("-------------------------------------------------------------------------------\n")
+	return text
 }
 
 func NewSlackNotifier(slackAPIToken, slackChannel string) *slackNotifier {
@@ -101,39 +90,38 @@ func (n *slackNotifier) postThreadInline(text, ts string) error {
 }
 
 // return timestamp to make thread bellow this message
-func (n *slackNotifier) PostReport(report []*model.ShutdownReport, project string) (string, error) {
-	pad := map[string]int{
-		"InstanceType":             -15,
-		"DoneResources":            -15,
-		"AlreadyShutdownResources": -25,
-		"SkipResources":            -15,
-	}
+func (n *slackNotifier) PostReport(report *report.ResourceCountReport) (string, error) {
+	pad := report.Padding
+	text := createHeader(pad, report.Project)
 
-	text := createHeader(pad, project)
-
-	for _, execResult := range report {
-		sum := execResult.CountResource()
-		stateList := getFieldNameList(&model.ShutdownReport{})
-
-		for _, resourceState := range stateList {
-			if resourceState == "InstanceType" {
-				text += fmt.Sprintf("%*s", pad[resourceState], execResult.InstanceType)
-			} else {
-				text += fmt.Sprintf("| %*d", pad[resourceState], sum[resourceState])
-			}
-		}
+	for _, resourceResult := range report.InstanceCountList {
+		text += fmt.Sprintf("%*s | %*d | %*d | %*d",
+			pad["InstanceType"], resourceResult.InstanceType,
+			pad["DoneResources"], resourceResult.DoneCount,
+			pad["AlreadyShutdownResources"], resourceResult.AlreadyCount,
+			pad["SkipResources"], resourceResult.SkipCount)
 		text += "\n"
 	}
-
-	text += fmt.Sprintf("-------------------------------------------------------------------------------\n")
 
 	return n.postInline(text)
 }
 
-func (n *slackNotifier) PostReportThread(parentTS string, report *model.ShutdownReport) error {
-	var text string
-	text += fmt.Sprintf("[ %s ]\n", report.InstanceType)
-	text += createDetailReport(report)
+func (n *slackNotifier) PostReportThread(parentTS string, report *report.DetailReport) error {
+	// align to left
+	pad := -25
+
+	text := createHeaderDetail(report.InstanceType, pad)
+
+	// field names of model.ShutdownReport
+	statusType := getFieldNameList(*report)
+
+	for i := 1; i < len(statusType); i++ {
+		status := statusType[i]
+		// pick up instance value from field name
+		for _, resource := range getFieldValue(*report, status).([]string) {
+			text += fmt.Sprintf("%*s | %s\n", pad, status, resource)
+		}
+	}
 
 	return n.postThreadInline(text, parentTS)
 }

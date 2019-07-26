@@ -51,11 +51,3 @@ func (r *ShutdownReport) Show() {
 		log.Printf(">> Resouce(%v): %v\n", i+1, resource)
 	}
 }
-
-func (r *ShutdownReport) CountResource() map[string]int {
-	return map[string]int{
-		"DoneResources":            len(r.DoneResources),
-		"AlreadyShutdownResources": len(r.AlreadyShutdownResources),
-		"SkipResources":            len(r.SkipResources),
-	}
-}
