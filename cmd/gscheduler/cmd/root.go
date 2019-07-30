@@ -18,18 +18,23 @@ package cmd
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/spf13/cobra"
 	"os"
+	"strconv"
+	"time"
 
 	"cloud.google.com/go/pubsub"
-	gscheduler "github.com/future-architect/gcp-instance-scheduler"
 	homedir "github.com/mitchellh/go-homedir"
+	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"golang.org/x/net/context"
 )
 
 var cfgFile string
 
+type Flags struct {
+	Project string
+	Timeout time.Duration
+}
 type PublishMsg struct {
 	Command string `json:"command"`
 }
@@ -40,7 +45,7 @@ func NewPublishMsg(op string) PublishMsg {
 	}
 }
 
-func (m PublishMsg) encode() (*pubsub.Message, error) {
+func (m PublishMsg) Encode() (*pubsub.Message, error) {
 	data, err := json.Marshal(m)
 	if err != nil {
 		return nil, err
@@ -51,17 +56,50 @@ func (m PublishMsg) encode() (*pubsub.Message, error) {
 	}, nil
 }
 
+func NewFlags(c *cobra.Command) (Flags, error) {
+	var flags Flags
+
+	projectID, err := c.PersistentFlags().GetString("project")
+	if err != nil {
+		return flags, err
+	}
+
+	timeout, err := c.PersistentFlags().GetString("timeout")
+	if err != nil {
+		return flags, err
+	}
+
+	t, err := strconv.Atoi(timeout)
+	if err != nil {
+		return flags, err
+	}
+
+	flags = Flags{
+		Project: projectID,
+		Timeout: time.Duration(t) * time.Second,
+	}
+	return flags, nil
+}
+
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
 	Use:   "gscheduler",
-	Short: "A brief description of your application",
+	Short: "gcp-instance-scheduler local execution entroy porint",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		pubMsg, err := NewPublishMsg("stop").encode()
+		pubMsg, err := NewPublishMsg("stop").Encode()
 		if err != nil {
 			return err
 		}
 
-		return gscheduler.ReceiveEvent(context.Background(), pubMsg)
+		flags, err := NewFlags(cmd)
+		if err != nil {
+			return err
+		}
+
+		ctx, cancel := context.WithTimeout(context.Background(), flags.Timeout)
+		defer cancel()
+
+		return ReceiveEvent(ctx, pubMsg, flags)
 	},
 }
 
@@ -83,6 +121,8 @@ func init() {
 
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.gscheduler.yaml)")
 
+	rootCmd.PersistentFlags().StringP("project", "p", "", "project id (defautl $GCP_PROJECT)")
+	rootCmd.PersistentFlags().String("timeout", "60", "set timeout seconds")
 	// Cobra also supports local flags, which will only run
 	// when this action is called directly.
 	rootCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")

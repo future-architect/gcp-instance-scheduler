@@ -15,8 +15,8 @@ limitations under the License.
 */
 package main
 
-import "github.com/future-architect/gcp-instance-scheduler/gscheduler/cmd"
+import "github.com/future-architect/gcp-instance-scheduler/cmd/gscheduler/cmd"
 
 func main() {
-  cmd.Execute()
+	cmd.Execute()
 }
