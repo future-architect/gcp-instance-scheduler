@@ -20,7 +20,7 @@ func getDate() string {
 	return fmt.Sprintf("%d/%d/%d", year, month, day)
 }
 
-// return struct
+// return struct field name list as table label
 func getFieldNameList(e interface{}) []string {
 	var fieldName []string
 
@@ -112,12 +112,12 @@ func (n *slackNotifier) PostReportThread(parentTS string, report *report.DetailR
 
 	text := createHeaderDetail(report.InstanceType, pad)
 
-	// field names of model.ShutdownReport
+	// field names of `report` struct
 	statusType := getFieldNameList(*report)
 
 	for i := 1; i < len(statusType); i++ {
 		status := statusType[i]
-		// pick up instance value from field name
+		// look up instance value with field name
 		for _, resource := range getFieldValue(*report, status).([]string) {
 			text += fmt.Sprintf("%*s | %s\n", pad, status, resource)
 		}
