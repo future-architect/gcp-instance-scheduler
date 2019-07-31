@@ -19,6 +19,12 @@ import (
 	"log"
 )
 
+const (
+	ComputeEngine = "ComputeEngine"
+	InstanceGroup = "InstanceGroup"
+	SQL           = "SQL"
+)
+
 type ShutdownReport struct {
 	// InstanceGroup, ComputeEngine, SQL
 	InstanceType string
@@ -26,13 +32,9 @@ type ShutdownReport struct {
 	DoneResources []string
 	// already stopped resource names
 	AlreadyShutdownResources []string
+	// skipped resource name
+	SkipResources []string
 }
-
-const (
-	ComputeEngine = "ComputeEngine"
-	InstanceGroup = "InstanceGroup"
-	SQL           = "SQL"
-)
 
 func (r *ShutdownReport) Show() {
 	log.Println("<<<<< " + r.InstanceType + " >>>>>")
