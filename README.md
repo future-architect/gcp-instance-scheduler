@@ -84,14 +84,20 @@ You can designate project id and timeout length by using flags.
 If you use slack notification, you have to enable slack notification by adding the flag `--slackNotification`.
 
 ```
-gscheduler [flags]
+gcp-instance-scheduler local execution entroy porint
+
+Usage:
+  gscheduler [flags]
 
 Flags:
-      --config string    config file (default is $HOME/.gscheduler.yaml)
-  -h, --help             help for gscheduler
-  -p, --project string   project id (defautl $GCP_PROJECT)
-      --timeout string   set timeout seconds (default "60")
-  -t, --toggle           Help message for toggle
+      --config string         config file (default is $HOME/.gscheduler.yaml)
+  -h, --help                  help for gscheduler
+  -p, --project string        project id (defautl $GCP_PROJECT)
+      --slackChannel string   Slack Channel name (should enable slack notify)
+  -s, --slackNotifyEnable     Enable slack notification
+      --slackToken string     SlackAPI token (should enable slack notify)
+      --timeout string        set timeout seconds (default "60")
+  -t, --toggle                Help message for toggle
 ``` 
 Following environmental valiables are used when you didn't designate these flags.
 
