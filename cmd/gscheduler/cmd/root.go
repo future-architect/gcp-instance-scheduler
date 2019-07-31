@@ -1,28 +1,27 @@
-/*
-Copyright © 2019 NAME HERE <EMAIL ADDRESS>
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-*/
+/**
+ * Copyright (c) 2019-present Future Corporation
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package cmd
 
 import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"strconv"
-	"time"
 
 	"cloud.google.com/go/pubsub"
+	"github.com/future-architect/gcp-instance-scheduler/scheduler"
 	homedir "github.com/mitchellh/go-homedir"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -31,10 +30,6 @@ import (
 
 var cfgFile string
 
-type Flags struct {
-	Project string
-	Timeout time.Duration
-}
 type PublishMsg struct {
 	Command string `json:"command"`
 }
@@ -56,29 +51,23 @@ func (m PublishMsg) Encode() (*pubsub.Message, error) {
 	}, nil
 }
 
-func NewFlags(c *cobra.Command) (Flags, error) {
-	var flags Flags
-
-	projectID, err := c.PersistentFlags().GetString("project")
-	if err != nil {
-		return flags, err
+func getFlags(c *cobra.Command) (project, timeout, slackToken, slackChannel string, slackEnable bool, err error) {
+	if project, err = c.PersistentFlags().GetString("project"); err != nil {
+		return
 	}
-
-	timeout, err := c.PersistentFlags().GetString("timeout")
-	if err != nil {
-		return flags, err
+	if timeout, err = c.PersistentFlags().GetString("timeout"); err != nil {
+		return
 	}
-
-	t, err := strconv.Atoi(timeout)
-	if err != nil {
-		return flags, err
+	if slackToken, err = c.PersistentFlags().GetString("slackToken"); err != nil {
+		return
 	}
-
-	flags = Flags{
-		Project: projectID,
-		Timeout: time.Duration(t) * time.Second,
+	if slackChannel, err = c.PersistentFlags().GetString("slackChannel"); err != nil {
+		return
 	}
-	return flags, nil
+	if slackEnable, err = c.PersistentFlags().GetBool("slackNotifyEnable"); err != nil {
+		return
+	}
+	return
 }
 
 // rootCmd represents the base command when called without any subcommands
@@ -91,15 +80,20 @@ var rootCmd = &cobra.Command{
 			return err
 		}
 
-		flags, err := NewFlags(cmd)
+		projectID, timeout, slackAPIToken, slackChannel, slackEnable, err := getFlags(cmd)
 		if err != nil {
 			return err
 		}
 
-		ctx, cancel := context.WithTimeout(context.Background(), flags.Timeout)
+		opts, err := scheduler.NewSchedulerOptions(projectID, timeout, slackAPIToken, slackChannel, slackEnable)
+		if err != nil {
+			return err
+		}
+
+		ctx, cancel := context.WithTimeout(context.Background(), opts.Timeout)
 		defer cancel()
 
-		return ReceiveEvent(ctx, pubMsg, flags)
+		return scheduler.Shutdown(ctx, pubMsg, opts)
 	},
 }
 
@@ -123,6 +117,9 @@ func init() {
 
 	rootCmd.PersistentFlags().StringP("project", "p", "", "project id (defautl $GCP_PROJECT)")
 	rootCmd.PersistentFlags().String("timeout", "60", "set timeout seconds")
+	rootCmd.PersistentFlags().String("slackToken", "", "SlackAPI token (should enable slack notify)")
+	rootCmd.PersistentFlags().String("slackChannel", "", "Slack Channel name (should enable slack notify)")
+	rootCmd.PersistentFlags().BoolP("slackNotifyEnable", "s", false, "Enable slack notification")
 	// Cobra also supports local flags, which will only run
 	// when this action is called directly.
 	rootCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")

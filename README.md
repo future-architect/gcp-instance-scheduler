@@ -67,6 +67,39 @@ gcloud container clusters update <cluster-name> \
   --update-labels state-scheduler=true
 ```
 
+## Local Execution Tool
+
+gscheduler
+====
+
+Shutdown instances with executing functinos from your console.
+
+### Install
+
+`go get -v github.com/future-architect/gcp-instance-scheduler/cmd/gscheduler`
+
+### Usage
+
+You can designate project id and timeout length by using flags.
+If you use slack notification, you have to enable slack notification by adding the flag `--slackNotification`.
+
+```
+gscheduler [flags]
+
+Flags:
+      --config string    config file (default is $HOME/.gscheduler.yaml)
+  -h, --help             help for gscheduler
+  -p, --project string   project id (defautl $GCP_PROJECT)
+      --timeout string   set timeout seconds (default "60")
+  -t, --toggle           Help message for toggle
+``` 
+Following environmental valiables are used when you didn't designate these flags.
+
+|#  |flags         |variables       |
+|---|--------------|----------------|
+| 1 |project(p)    |GCP_PROEJCT     |
+| 2 |slackAPIToken |SLACK_API_TOKEN |
+| 3 |slackChannel  |SLACK_CHANNEL   |
 
 ## Tips: Debug Function
 

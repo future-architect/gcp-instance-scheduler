@@ -13,15 +13,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package cmd
+package scheduler
 
 import (
 	"encoding/json"
 	"log"
 	"os"
+	"strconv"
 	"time"
 
+	"github.com/future-architect/gcp-instance-scheduler/model"
+	"github.com/future-architect/gcp-instance-scheduler/notice"
 	"github.com/future-architect/gcp-instance-scheduler/operator"
+	"github.com/future-architect/gcp-instance-scheduler/report"
 
 	"cloud.google.com/go/pubsub"
 	"github.com/hashicorp/go-multierror"
@@ -38,12 +42,50 @@ type SubscribedMessage struct {
 	Command string `json:"command"`
 }
 
-func ReceiveEvent(ctx context.Context, msg *pubsub.Message, flags Flags) error {
-	projectID := flags.Project
+type ShutdownOptions struct {
+	Project       string
+	Timeout       time.Duration
+	SlackAPIToken string
+	SlackChannel  string
+	SlackEnable   bool
+}
 
+func NewSchedulerOptions(projectID, timeout, slackToken, slackChannel string, slackEnable bool) (*ShutdownOptions, error) {
 	if len(projectID) == 0 {
 		projectID = os.Getenv("GCP_PROJECT")
 	}
+
+	t := time.Duration(60) * time.Second
+	if len(timeout) != 0 {
+		tm, err := strconv.Atoi(timeout)
+		if err != nil {
+			return nil, err
+		}
+		t = time.Duration(tm)
+	}
+
+	if len(slackToken) == 0 {
+		slackToken = os.Getenv("SLACK_API_TOKEN")
+	}
+
+	if len(slackChannel) == 0 {
+		slackChannel = os.Getenv("SLACK_CHANNEL")
+	}
+
+	return &ShutdownOptions{
+		Project:       projectID,
+		Timeout:       t,
+		SlackAPIToken: slackToken,
+		SlackChannel:  slackChannel,
+		SlackEnable:   slackEnable,
+	}, nil
+}
+
+func Shutdown(ctx context.Context, msg *pubsub.Message, op *ShutdownOptions) error {
+	projectID := op.Project
+	slackAPIToken := op.SlackAPIToken
+	slackChannel := op.SlackChannel
+
 	log.Printf("Project ID: %v", projectID)
 
 	// decode the json message from Pub/Sub
@@ -55,6 +97,8 @@ func ReceiveEvent(ctx context.Context, msg *pubsub.Message, flags Flags) error {
 
 	// for multierror
 	var errorLog error
+
+	var result []*model.ShutdownReport
 
 	if err := operator.SetLabelNodePoolSize(ctx, projectID, TargetLabel, ShutdownInterval); err != nil {
 		errorLog = multierror.Append(errorLog, err)
@@ -74,6 +118,7 @@ func ReceiveEvent(ctx context.Context, msg *pubsub.Message, flags Flags) error {
 		errorLog = multierror.Append(errorLog, err)
 		log.Printf("Some error occured in stopping gce instances: %v", err)
 	}
+	result = append(result, rpt)
 	rpt.Show()
 
 	rpt, err = operator.ComputeEngineResource(ctx, projectID).
@@ -83,6 +128,7 @@ func ReceiveEvent(ctx context.Context, msg *pubsub.Message, flags Flags) error {
 		errorLog = multierror.Append(errorLog, err)
 		log.Printf("Some error occured in stopping gce instances: %v", err)
 	}
+	result = append(result, rpt)
 	rpt.Show()
 
 	rpt, err = operator.SQLResource(ctx, projectID).
@@ -92,7 +138,30 @@ func ReceiveEvent(ctx context.Context, msg *pubsub.Message, flags Flags) error {
 		errorLog = multierror.Append(errorLog, err)
 		log.Printf("Some error occured in stopping sql instances: %v", err)
 	}
+	result = append(result, rpt)
 	rpt.Show()
+
+	if !op.SlackEnable {
+		log.Printf("done.")
+		return errorLog
+	}
+
+	notifier := notice.NewSlackNotifier(slackAPIToken, slackChannel)
+
+	countReport := report.NewResourceCountReport(result, projectID)
+	parentTS, err := notifier.PostReport(countReport)
+	if err != nil {
+		errorLog = multierror.Append(errorLog, err)
+		log.Fatal("Error in Slack notification:", err)
+	}
+
+	detailReport := report.NewDetailReportList(result)
+	for _, r := range detailReport {
+		if err := notifier.PostReportThread(parentTS, r); err != nil {
+			errorLog = multierror.Append(errorLog, err)
+			log.Fatal("Error in Slack notification (thread):", err)
+		}
+	}
 
 	log.Printf("done.")
 	return errorLog
