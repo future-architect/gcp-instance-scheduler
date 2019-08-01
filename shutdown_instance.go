@@ -16,6 +16,9 @@
 package function
 
 import (
+	"encoding/json"
+	"fmt"
+	"log"
 	"os"
 	"time"
 
@@ -30,20 +33,36 @@ const TargetLabel = "state-scheduler"
 // API call interval
 const ShutdownInterval = 50 * time.Millisecond
 
-type SubscribedMessage struct {
-	Command string `json:"command"`
-}
-
 func ReceiveEvent(ctx context.Context, msg *pubsub.Message) error {
 
 	projectID := os.Getenv("GCP_PROJECT")
 	slackAPIToken := os.Getenv("SLACK_API_TOKEN")
-	slackChannel := os.Getenv("SLACK_CHANNEL_NAME")
+	slackChannel := os.Getenv("SLACK_CHANNEL")
+	slackNotify := os.Getenv("SLACK_ENABLE")
+	if projectID == "" || (slackNotify == "true" && (slackAPIToken == "" || slackChannel == "")) {
+		return fmt.Errorf("missing environment variable")
+	}
+	// decode the json message from Pub/Sub
+	message, err := decode(msg.Data)
+	if err != nil {
+		log.Printf("Error at the fucntion 'DecodeMessage': %v", err)
+	}
 
-	opts, err := scheduler.NewSchedulerOptions(projectID, "60", slackAPIToken, slackChannel, true)
+	opts, err := scheduler.NewSchedulerOptions(message, projectID, "60", slackAPIToken, slackChannel, slackNotify)
 	if err != nil {
 		return err
 	}
 
-	return scheduler.Shutdown(ctx, msg, opts)
+	return scheduler.Shutdown(ctx, opts)
+}
+
+func decode(payload []byte) (msgData scheduler.SubscribedMessage, err error) {
+	if err = json.Unmarshal(payload, &msgData); err != nil {
+		log.Printf("Message[%v] ... Could not decode subscribing data: %v", payload, err)
+		if e, ok := err.(*json.SyntaxError); ok {
+			log.Printf("syntax error at byte offset %d", e.Offset)
+		}
+		return
+	}
+	return
 }

@@ -16,7 +16,6 @@
 package scheduler
 
 import (
-	"encoding/json"
 	"log"
 	"os"
 	"strconv"
@@ -27,7 +26,6 @@ import (
 	"github.com/future-architect/gcp-instance-scheduler/operator"
 	"github.com/future-architect/gcp-instance-scheduler/report"
 
-	"cloud.google.com/go/pubsub"
 	"github.com/hashicorp/go-multierror"
 	"golang.org/x/net/context"
 )
@@ -43,6 +41,7 @@ type SubscribedMessage struct {
 }
 
 type ShutdownOptions struct {
+	PubMessage    SubscribedMessage
 	Project       string
 	Timeout       time.Duration
 	SlackAPIToken string
@@ -50,11 +49,7 @@ type ShutdownOptions struct {
 	SlackEnable   bool
 }
 
-func NewSchedulerOptions(projectID, timeout, slackToken, slackChannel string, slackEnable bool) (*ShutdownOptions, error) {
-	if len(projectID) == 0 {
-		projectID = os.Getenv("GCP_PROJECT")
-	}
-
+func NewSchedulerOptions(msg SubscribedMessage, projectID, timeout, slackToken, slackChannel, slackEnable string) (*ShutdownOptions, error) {
 	t := time.Duration(60) * time.Second
 	if len(timeout) != 0 {
 		tm, err := strconv.Atoi(timeout)
@@ -63,37 +58,35 @@ func NewSchedulerOptions(projectID, timeout, slackToken, slackChannel string, sl
 		}
 		t = time.Duration(tm)
 	}
-
-	if len(slackToken) == 0 {
+	slackFlag := false
+	if slackEnable == "true" {
+		slackFlag = true
+	}
+	if slackToken == "" {
 		slackToken = os.Getenv("SLACK_API_TOKEN")
 	}
-
-	if len(slackChannel) == 0 {
+	if slackChannel == "" {
 		slackChannel = os.Getenv("SLACK_CHANNEL")
 	}
 
 	return &ShutdownOptions{
+		PubMessage:    msg,
 		Project:       projectID,
 		Timeout:       t,
 		SlackAPIToken: slackToken,
 		SlackChannel:  slackChannel,
-		SlackEnable:   slackEnable,
+		SlackEnable:   slackFlag,
 	}, nil
 }
 
-func Shutdown(ctx context.Context, msg *pubsub.Message, op *ShutdownOptions) error {
+func Shutdown(ctx context.Context, op *ShutdownOptions) error {
 	projectID := op.Project
 	slackAPIToken := op.SlackAPIToken
 	slackChannel := op.SlackChannel
 
 	log.Printf("Project ID: %v", projectID)
 
-	// decode the json message from Pub/Sub
-	message, err := decode(msg.Data)
-	if err != nil {
-		log.Printf("Error at the fucntion 'DecodeMessage': %v", err)
-	}
-	log.Printf("Subscribed message(Command): %v", message.Command)
+	log.Printf("Subscribed message(Command): %v", op.PubMessage.Command)
 
 	// for multierror
 	var errorLog error
@@ -165,15 +158,4 @@ func Shutdown(ctx context.Context, msg *pubsub.Message, op *ShutdownOptions) err
 
 	log.Printf("done.")
 	return errorLog
-}
-
-func decode(payload []byte) (msgData SubscribedMessage, err error) {
-	if err = json.Unmarshal(payload, &msgData); err != nil {
-		log.Printf("Message[%v] ... Could not decode subscribing data: %v", payload, err)
-		if e, ok := err.(*json.SyntaxError); ok {
-			log.Printf("syntax error at byte offset %d", e.Offset)
-		}
-		return
-	}
-	return
 }

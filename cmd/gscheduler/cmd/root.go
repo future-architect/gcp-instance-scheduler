@@ -16,11 +16,9 @@
 package cmd
 
 import (
-	"encoding/json"
 	"fmt"
 	"os"
 
-	"cloud.google.com/go/pubsub"
 	"github.com/future-architect/gcp-instance-scheduler/scheduler"
 	homedir "github.com/mitchellh/go-homedir"
 	"github.com/spf13/cobra"
@@ -29,27 +27,6 @@ import (
 )
 
 var cfgFile string
-
-type PublishMsg struct {
-	Command string `json:"command"`
-}
-
-func NewPublishMsg(op string) PublishMsg {
-	return PublishMsg{
-		Command: op,
-	}
-}
-
-func (m PublishMsg) Encode() (*pubsub.Message, error) {
-	data, err := json.Marshal(m)
-	if err != nil {
-		return nil, err
-	}
-
-	return &pubsub.Message{
-		Data: data,
-	}, nil
-}
 
 func getFlags(c *cobra.Command) (project, timeout, slackToken, slackChannel string, slackEnable bool, err error) {
 	if project, err = c.PersistentFlags().GetString("project"); err != nil {
@@ -75,17 +52,19 @@ var rootCmd = &cobra.Command{
 	Use:   "gscheduler",
 	Short: "gcp-instance-scheduler local execution entroy porint",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		pubMsg, err := NewPublishMsg("stop").Encode()
-		if err != nil {
-			return err
-		}
-
 		projectID, timeout, slackAPIToken, slackChannel, slackEnable, err := getFlags(cmd)
 		if err != nil {
 			return err
 		}
+		subMessage := scheduler.SubscribedMessage{
+			Command: "stop",
+		}
+		slackEnableFlag := "false"
+		if slackEnable {
+			slackEnableFlag = "true"
+		}
 
-		opts, err := scheduler.NewSchedulerOptions(projectID, timeout, slackAPIToken, slackChannel, slackEnable)
+		opts, err := scheduler.NewSchedulerOptions(subMessage, projectID, timeout, slackAPIToken, slackChannel, slackEnableFlag)
 		if err != nil {
 			return err
 		}
@@ -93,7 +72,7 @@ var rootCmd = &cobra.Command{
 		ctx, cancel := context.WithTimeout(context.Background(), opts.Timeout)
 		defer cancel()
 
-		return scheduler.Shutdown(ctx, pubMsg, opts)
+		return scheduler.Shutdown(ctx, opts)
 	},
 }
 
