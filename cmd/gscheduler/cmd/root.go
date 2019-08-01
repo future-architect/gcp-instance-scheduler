@@ -18,6 +18,8 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"strconv"
+	"time"
 
 	"github.com/future-architect/gcp-instance-scheduler/scheduler"
 	homedir "github.com/mitchellh/go-homedir"
@@ -56,20 +58,25 @@ var rootCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		subMessage := scheduler.SubscribedMessage{
-			Command: "stop",
+
+		if slackAPIToken == "" {
+			slackAPIToken = os.Getenv("SLACK_API_TOKEN")
 		}
-		slackEnableFlag := "false"
-		if slackEnable {
-			slackEnableFlag = "true"
+		if slackChannel == "" {
+			slackChannel = os.Getenv("SLACK_CHANNEL")
+		}
+		timeoutSec := time.Duration(60) * time.Second
+		if len(timeout) != 0 {
+			tm, err := strconv.Atoi(timeout)
+			if err != nil {
+				return err
+			}
+			timeoutSec = time.Duration(tm) * time.Second
 		}
 
-		opts, err := scheduler.NewSchedulerOptions(subMessage, projectID, timeout, slackAPIToken, slackChannel, slackEnableFlag)
-		if err != nil {
-			return err
-		}
+		opts := scheduler.NewSchedulerOptions(projectID, slackAPIToken, slackChannel, slackEnable)
 
-		ctx, cancel := context.WithTimeout(context.Background(), opts.Timeout)
+		ctx, cancel := context.WithTimeout(context.Background(), timeoutSec)
 		defer cancel()
 
 		return scheduler.Shutdown(ctx, opts)

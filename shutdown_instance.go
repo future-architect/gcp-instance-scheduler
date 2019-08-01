@@ -42,13 +42,20 @@ func ReceiveEvent(ctx context.Context, msg *pubsub.Message) error {
 	if projectID == "" || (slackNotify == "true" && (slackAPIToken == "" || slackChannel == "")) {
 		return fmt.Errorf("missing environment variable")
 	}
+
 	// decode the json message from Pub/Sub
 	message, err := decode(msg.Data)
 	if err != nil {
 		log.Printf("Error at the fucntion 'DecodeMessage': %v", err)
 	}
+	log.Printf("Subscribed message(Command): %v", message.Command)
 
-	opts, err := scheduler.NewSchedulerOptions(message, projectID, "60", slackAPIToken, slackChannel, slackNotify)
+	slackEnable := false
+	if slackNotify == "true" {
+		slackEnable = true
+	}
+
+	opts := scheduler.NewSchedulerOptions(projectID, slackAPIToken, slackChannel, slackEnable)
 	if err != nil {
 		return err
 	}

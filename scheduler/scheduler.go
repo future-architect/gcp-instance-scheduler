@@ -17,8 +17,6 @@ package scheduler
 
 import (
 	"log"
-	"os"
-	"strconv"
 	"time"
 
 	"github.com/future-architect/gcp-instance-scheduler/model"
@@ -41,42 +39,19 @@ type SubscribedMessage struct {
 }
 
 type ShutdownOptions struct {
-	PubMessage    SubscribedMessage
 	Project       string
-	Timeout       time.Duration
 	SlackAPIToken string
 	SlackChannel  string
 	SlackEnable   bool
 }
 
-func NewSchedulerOptions(msg SubscribedMessage, projectID, timeout, slackToken, slackChannel, slackEnable string) (*ShutdownOptions, error) {
-	t := time.Duration(60) * time.Second
-	if len(timeout) != 0 {
-		tm, err := strconv.Atoi(timeout)
-		if err != nil {
-			return nil, err
-		}
-		t = time.Duration(tm)
-	}
-	slackFlag := false
-	if slackEnable == "true" {
-		slackFlag = true
-	}
-	if slackToken == "" {
-		slackToken = os.Getenv("SLACK_API_TOKEN")
-	}
-	if slackChannel == "" {
-		slackChannel = os.Getenv("SLACK_CHANNEL")
-	}
-
+func NewSchedulerOptions(projectID string, slackToken, slackChannel string, slackEnable bool) *ShutdownOptions {
 	return &ShutdownOptions{
-		PubMessage:    msg,
 		Project:       projectID,
-		Timeout:       t,
 		SlackAPIToken: slackToken,
 		SlackChannel:  slackChannel,
-		SlackEnable:   slackFlag,
-	}, nil
+		SlackEnable:   slackEnable,
+	}
 }
 
 func Shutdown(ctx context.Context, op *ShutdownOptions) error {
@@ -85,8 +60,6 @@ func Shutdown(ctx context.Context, op *ShutdownOptions) error {
 	slackChannel := op.SlackChannel
 
 	log.Printf("Project ID: %v", projectID)
-
-	log.Printf("Subscribed message(Command): %v", op.PubMessage.Command)
 
 	// for multierror
 	var errorLog error
