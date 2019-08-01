@@ -45,7 +45,7 @@ type ShutdownOptions struct {
 	SlackEnable   bool
 }
 
-func NewSchedulerOptions(projectID string, slackToken, slackChannel string, slackEnable bool) *ShutdownOptions {
+func NewSchedulerOptions(projectID, slackToken, slackChannel string, slackEnable bool) *ShutdownOptions {
 	return &ShutdownOptions{
 		Project:       projectID,
 		SlackAPIToken: slackToken,
