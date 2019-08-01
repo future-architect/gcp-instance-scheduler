@@ -24,11 +24,24 @@ Tools that shutdown GCP Instance on your schedule.
 
 * install [gcloud](https://cloud.google.com/sdk/gcloud/)
 
+### Required variables
+When you want to get slack notification, please set these environment variables.
+You can get slack notification if and only if these three variables are setted.
+
+|#  |variables       |Note                               |
+|---|----------------|-----------------------------------|
+| 1 |SLACK_ENABLE    |Slack notification enable ("true") |
+| 2 |SLACK_API_TOKEN |Slack api token                    |
+| 3 |SLACK_CHANNEL   |Slack channel name                 |
+
 ```sh
-# Deploy Cloud Function
+# Deploy Cloud Function: slack notification enable
 gcloud functions deploy ReceiveEvent --project <project-id> \
   --runtime go111 \
-  --trigger-topic instance-scheduler-event
+  --trigger-topic instance-scheduler-event \
+  --set-env-vars SLACK_ENABLE=true \
+  --set-env-vars SLACK_API_TOKEN=<slack-api-token> \
+  --set-env-vars SLACK_CHANNEL=<slack-channel-name>
 
 # Create Cloud Scheduler Job
 gcloud beta scheduler jobs create pubsub shutdown-workday \
@@ -67,6 +80,45 @@ gcloud container clusters update <cluster-name> \
   --update-labels state-scheduler=true
 ```
 
+## Local Execution Tool
+
+gscheduler
+====
+
+Shutdown instances with executing functinos from your console.
+
+### Install
+
+`go get -v github.com/future-architect/gcp-instance-scheduler/cmd/gscheduler`
+
+### Usage
+
+You can designate project id and timeout length by using flags.
+If you use slack notification, you have to enable slack notification by adding the flag `--slackNotification`.
+
+```
+gcp-instance-scheduler local execution entroy porint
+
+Usage:
+  gscheduler [flags]
+
+Flags:
+      --config string         config file (default is $HOME/.gscheduler.yaml)
+  -h, --help                  help for gscheduler
+  -p, --project string        project id (defautl $GCP_PROJECT)
+      --slackChannel string   Slack Channel name (should enable slack notify)
+  -s, --slackNotifyEnable     Enable slack notification
+      --slackToken string     SlackAPI token (should enable slack notify)
+      --timeout string        set timeout seconds (default "60")
+  -t, --toggle                Help message for toggle
+``` 
+Following valiables are used when you didn't designate these flags.
+
+|#  |flags                  |variables       |
+|---|-----------------------|----------------|
+| 1 |project(p)             |GCP_PROEJCT     |
+| 2 |slackAPIToken          |SLACK_API_TOKEN |
+| 3 |slackChannel           |SLACK_CHANNEL   |
 
 ## Tips: Debug Function
 
