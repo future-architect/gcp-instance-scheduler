@@ -29,53 +29,45 @@ import (
 )
 
 // Operation target label name
-const TargetLabel = "state-scheduler"
+const Label = "state-scheduler"
 
 // API call interval
-const ShutdownInterval = 50 * time.Millisecond
+const CallInterval = 50 * time.Millisecond
 
-type ShutdownOptions struct {
-	Project       string
-	SlackAPIToken string
-	SlackChannel  string
-	SlackEnable   bool
+type Options struct {
+	Project      string
+	SlackEnable  bool
+	SlackToken   string
+	SlackChannel string
 }
 
-func NewOptions(projectID, slackToken, slackChannel string, slackEnable bool) *ShutdownOptions {
-	return &ShutdownOptions{
-		Project:       projectID,
-		SlackAPIToken: slackToken,
-		SlackChannel:  slackChannel,
-		SlackEnable:   slackEnable,
+func NewOptions(projectID, slackToken, slackChannel string, slackEnable bool) *Options {
+	return &Options{
+		Project:      projectID,
+		SlackEnable:  slackEnable,
+		SlackToken:   slackToken,
+		SlackChannel: slackChannel,
 	}
 }
 
-func Shutdown(ctx context.Context, op *ShutdownOptions) error {
+func Shutdown(ctx context.Context, op *Options) error {
 	projectID := op.Project
-	slackAPIToken := op.SlackAPIToken
-	slackChannel := op.SlackChannel
-
 	log.Printf("Project ID: %v", projectID)
 
-	// for multierror
 	var errorLog error
-
 	var result []*model.ShutdownReport
 
-	if err := operator.SetLabelNodePoolSize(ctx, projectID, TargetLabel, ShutdownInterval); err != nil {
+	if err := operator.SetLabelNodePoolSize(ctx, projectID, Label, CallInterval); err != nil {
 		errorLog = multierror.Append(errorLog, err)
 		log.Printf("Error in setting labels on GKE cluster: %v", err)
 	}
 
-	// show cluster status
-	if err := operator.ShowClusterStatus(ctx, projectID, TargetLabel); err != nil {
+	if err := operator.ShowClusterStatus(ctx, projectID, Label); err != nil {
 		errorLog = multierror.Append(errorLog, err)
 		log.Printf("Error in stopping GKE: %v", err)
 	}
 
-	rpt, err := operator.InstanceGroupResource(ctx, projectID).
-		FilterLabel(TargetLabel, true).
-		ShutdownWithInterval(ctx, ShutdownInterval)
+	rpt, err := operator.InstanceGroup(ctx, projectID).Filter(Label, true).Do(ctx, CallInterval)
 	if err != nil {
 		errorLog = multierror.Append(errorLog, err)
 		log.Printf("Some error occured in stopping gce instances: %v", err)
@@ -83,9 +75,7 @@ func Shutdown(ctx context.Context, op *ShutdownOptions) error {
 	result = append(result, rpt)
 	rpt.Show()
 
-	rpt, err = operator.ComputeEngineResource(ctx, projectID).
-		FilterLabel(TargetLabel, true).
-		ShutdownWithInterval(ctx, ShutdownInterval)
+	rpt, err = operator.ComputeEngine(ctx, projectID).Filter(Label, true).Do(ctx, CallInterval)
 	if err != nil {
 		errorLog = multierror.Append(errorLog, err)
 		log.Printf("Some error occured in stopping gce instances: %v", err)
@@ -93,9 +83,7 @@ func Shutdown(ctx context.Context, op *ShutdownOptions) error {
 	result = append(result, rpt)
 	rpt.Show()
 
-	rpt, err = operator.SQLResource(ctx, projectID).
-		FilterLabel(TargetLabel, true).
-		ShutdownWithInterval(ctx, ShutdownInterval)
+	rpt, err = operator.SQL(ctx, projectID).Filter(Label, true).Do(ctx, CallInterval)
 	if err != nil {
 		errorLog = multierror.Append(errorLog, err)
 		log.Printf("Some error occured in stopping sql instances: %v", err)
@@ -108,18 +96,68 @@ func Shutdown(ctx context.Context, op *ShutdownOptions) error {
 		return errorLog
 	}
 
-	notifier := notice.NewSlackNotifier(slackAPIToken, slackChannel)
-
-	countReport := report.NewResourceCountReport(result, projectID)
-	parentTS, err := notifier.PostReport(countReport)
+	n := notice.NewSlackNotifier(op.SlackToken, op.SlackChannel)
+	parentTS, err := n.PostReport(report.NewResourceCountReport(result, projectID))
 	if err != nil {
 		errorLog = multierror.Append(errorLog, err)
 		log.Println("Error in Slack notification:", err)
 	}
 
-	detailReport := report.NewDetailReportList(result)
+	detailReport := report.NewDetailReports(result)
 	for _, r := range detailReport {
-		if err := notifier.PostReportThread(parentTS, r); err != nil {
+		if err := n.PostReportThread(parentTS, r); err != nil {
+			errorLog = multierror.Append(errorLog, err)
+			log.Println("Error in Slack notification (thread):", err)
+		}
+	}
+
+	log.Printf("done.")
+	return errorLog
+}
+
+func Reboot(ctx context.Context, op *Options) error {
+	projectID := op.Project
+	log.Printf("Project ID: %v", projectID)
+
+	var errorLog error
+	var result []*model.ShutdownReport
+
+	rpt, err := operator.InstanceGroup(ctx, projectID).Filter(Label, true).Do(ctx, CallInterval)
+	if err != nil {
+		errorLog = multierror.Append(errorLog, err)
+		log.Printf("Some error occured in stopping gce instances: %v", err)
+	}
+	result = append(result, rpt)
+
+	rpt, err = operator.ComputeEngine(ctx, projectID).Filter(Label, true).Do(ctx, CallInterval)
+	if err != nil {
+		errorLog = multierror.Append(errorLog, err)
+		log.Printf("Some error occured in stopping gce instances: %v", err)
+	}
+	result = append(result, rpt)
+
+	rpt, err = operator.SQL(ctx, projectID).Filter(Label, true).Do(ctx, CallInterval)
+	if err != nil {
+		errorLog = multierror.Append(errorLog, err)
+		log.Printf("Some error occured in stopping sql instances: %v", err)
+	}
+	result = append(result, rpt)
+
+	if !op.SlackEnable {
+		log.Printf("done.")
+		return errorLog
+	}
+
+	n := notice.NewSlackNotifier(op.SlackToken, op.SlackChannel)
+	parentTS, err := n.PostReport(report.NewResourceCountReport(result, projectID))
+	if err != nil {
+		errorLog = multierror.Append(errorLog, err)
+		log.Println("Error in Slack notification:", err)
+	}
+
+	detailReport := report.NewDetailReports(result)
+	for _, r := range detailReport {
+		if err := n.PostReportThread(parentTS, r); err != nil {
 			errorLog = multierror.Append(errorLog, err)
 			log.Println("Error in Slack notification (thread):", err)
 		}

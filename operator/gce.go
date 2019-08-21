@@ -27,82 +27,52 @@ import (
 	"google.golang.org/api/compute/v1"
 )
 
-type GCEListCall struct {
-	AggregatedListCall *compute.InstancesAggregatedListCall
-	ProjectID          string
-	Error              error
+type ComputeEngineCall struct {
+	Service   *compute.Service
+	Call      *compute.InstancesAggregatedListCall
+	ProjectID string
+	Error     error
 }
 
-type GCEShutdownCall struct {
-	TargetList *compute.InstanceAggregatedList
-	ProjectID  string
-	Error      error
-}
-
-// create instance list
-func valuesGCE(m map[string]compute.InstancesScopedList) []*compute.Instance {
-	var res []*compute.Instance
-	for _, instanceList := range m {
-		if len(instanceList.Instances) == 0 {
-			continue
-		}
-		res = append(res, instanceList.Instances...)
-	}
-	return res
-}
-
-func ComputeEngineResource(ctx context.Context, projectID string) *GCEListCall {
-	// reporting error list
-	var res error
-
-	// create service to operate instances
-	computeService, err := compute.NewService(ctx)
+func ComputeEngine(ctx context.Context, projectID string) *ComputeEngineCall {
+	s, err := compute.NewService(ctx)
 	if err != nil {
-		res = multierror.Append(res, err)
+		return &ComputeEngineCall{Error: err}
 	}
 
 	// get all instances in each zone at this project
-	list := compute.NewInstancesService(computeService).AggregatedList(projectID)
-
-	return &GCEListCall{
-		AggregatedListCall: list,
-		ProjectID:          projectID,
-		Error:              res,
+	return &ComputeEngineCall{
+		Service:   s,
+		ProjectID: projectID,
+		Call:      compute.NewInstancesService(s).AggregatedList(projectID),
 	}
 }
 
-func (r *GCEListCall) FilterLabel(targetLabel string, flag bool) *GCEShutdownCall {
-	// reporting error list
-	var res = r.Error
-
-	list, err := r.AggregatedListCall.Filter("labels." + targetLabel + "=" + strconv.FormatBool(flag)).Do()
-	if err != nil {
-		res = multierror.Append(r.Error, err)
+func (r *ComputeEngineCall) Filter(labelName string, flag bool) *ComputeEngineCall {
+	if r.Error != nil {
+		return r
 	}
-
-	return &GCEShutdownCall{
-		TargetList: list,
-		ProjectID:  r.ProjectID,
-		Error:      res,
+	return &ComputeEngineCall{
+		ProjectID: r.ProjectID,
+		Call:      r.Call.Filter("labels." + labelName + "=" + strconv.FormatBool(flag)),
 	}
 }
 
-func (r *GCEShutdownCall) ShutdownWithInterval(ctx context.Context, interval time.Duration) (*model.ShutdownReport, error) {
+func (r *ComputeEngineCall) Do(ctx context.Context, interval time.Duration) (*model.ShutdownReport, error) {
 	if r.Error != nil {
 		return nil, r.Error
+	}
+
+	list, err := r.Call.Do()
+	if err != nil {
+		return nil, err
 	}
 
 	var res = r.Error
 	var doneRes []string
 	var alreadyRes []string
 
-	// create service to operate instances
-	computeService, err := compute.NewService(ctx)
-	if err != nil {
-		res = multierror.Append(res, err)
-	}
-
-	for _, instance := range valuesGCE(r.TargetList.Items) {
+	for _, instance := range valuesGCE(list.Items) {
 		// check a instance which was already stopped
 		if instance.Status == "STOPPED" ||
 			instance.Status == "STOPPING" ||
@@ -116,13 +86,15 @@ func (r *GCEShutdownCall) ShutdownWithInterval(ctx context.Context, interval tim
 		zone := urlElements[len(urlElements)-1]
 
 		// shutdown an instance
-		_, err = compute.NewInstancesService(computeService).Stop(r.ProjectID, zone, instance.Name).Do()
+		_, err = compute.NewInstancesService(r.Service).Stop(r.ProjectID, zone, instance.Name).Do()
 		if err != nil {
 			res = multierror.Append(res, err)
 		}
+
 		doneRes = append(doneRes, instance.Name)
 		time.Sleep(interval)
 	}
+
 	log.Printf("Success in stopping GCE instances: Done.")
 
 	return &model.ShutdownReport{
@@ -130,4 +102,16 @@ func (r *GCEShutdownCall) ShutdownWithInterval(ctx context.Context, interval tim
 		DoneResources:            doneRes,
 		AlreadyShutdownResources: alreadyRes,
 	}, res
+}
+
+// create instance list
+func valuesGCE(m map[string]compute.InstancesScopedList) []*compute.Instance {
+	var res []*compute.Instance
+	for _, instanceList := range m {
+		if len(instanceList.Instances) == 0 {
+			continue
+		}
+		res = append(res, instanceList.Instances...)
+	}
+	return res
 }

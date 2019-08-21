@@ -26,17 +26,14 @@ import (
 )
 
 func ShowClusterStatus(ctx context.Context, projectID string, targetLabel string) error {
-	// create service to operate container
 	s, err := container.NewService(ctx)
 	if err != nil {
-		log.Printf("Could not create service: %v", err)
 		return err
 	}
 
 	// get all clusters list
 	clusters, err := container.NewProjectsLocationsClustersService(s).List("projects/" + projectID + "/locations/-").Do()
 	if err != nil {
-		log.Printf("Could not get GKE clusters list: %v", err)
 		return err
 	}
 
@@ -50,17 +47,14 @@ func ShowClusterStatus(ctx context.Context, projectID string, targetLabel string
 }
 
 func SetLabelNodePoolSize(ctx context.Context, projectID string, targetLabel string, interval time.Duration) error {
-	// create service to operate container
 	s, err := container.NewService(ctx)
 	if err != nil {
-		log.Printf("Could not create service: %v", err)
 		return err
 	}
 
 	// get all clusters list
 	clusters, err := container.NewProjectsLocationsClustersService(s).List("projects/" + projectID + "/locations/-").Do()
 	if err != nil {
-		log.Printf("Could not get GKE clusters list: %v", err)
 		return err
 	}
 
@@ -78,12 +72,9 @@ func SetLabelNodePoolSize(ctx context.Context, projectID string, targetLabel str
 			labels[nodeSizeLabel] = strconv.FormatInt(nodePool.InitialNodeCount, 10)
 
 			rb := &container.SetLabelsRequest{
-				ResourceLabels: make(map[string]string),
+				ResourceLabels: labels,
 			}
 
-			for key, value := range labels {
-				rb.ResourceLabels[key] = value
-			}
 			_, err := container.NewProjectsLocationsClustersService(s).SetResourceLabels(name, rb).Do()
 			if err != nil {
 				log.Printf("Could not add lable to cluster: %v", err)

@@ -17,49 +17,65 @@ package function
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
-	"os"
 
 	"cloud.google.com/go/pubsub"
 	"github.com/future-architect/gcp-instance-scheduler/scheduler"
+	"github.com/kelseyhightower/envconfig"
 	"golang.org/x/net/context"
 )
 
+// Env is cloud function environment variables
+type Env struct {
+	ProjectID    string `envconfig:"GCP_PROJECT" required:"true"`
+	SlackToken   string `envconfig:"SLACK_API_TOKEN" required:"true"`
+	SlackChannel string `envconfig:"SLACK_CHANNEL"`
+	SlackNotify  bool   `envconfig:"SLACK_ENABLE"`
+}
+
 func ReceiveEvent(ctx context.Context, msg *pubsub.Message) error {
 
-	projectID := os.Getenv("GCP_PROJECT")
-	slackAPIToken := os.Getenv("SLACK_API_TOKEN")
-	slackChannel := os.Getenv("SLACK_CHANNEL")
-	slackNotify := os.Getenv("SLACK_ENABLE")
-	if projectID == "" || (slackNotify == "true" && (slackAPIToken == "" || slackChannel == "")) {
-		return fmt.Errorf("missing environment variable")
+	var e Env
+	if err := envconfig.Process("", &e); err != nil {
+		log.Printf("Error at the fucntion 'DecodeMessage': %v", err)
+		return err
+	}
+	if e.SlackNotify && (e.SlackToken == "" || e.SlackChannel == "") {
+		return errors.New("missing environment variable")
 	}
 
-	// decode the json message from Pub/Sub
-	message, err := decode(msg.Data)
+	payload, err := decode(msg.Data)
 	if err != nil {
 		log.Printf("Error at the fucntion 'DecodeMessage': %v", err)
 		return err
 	}
-	log.Printf("Subscribed message(Command): %v", message.Command)
+	log.Printf("Subscribed message(Command): %v", payload.Command)
 
-	slackEnable := false
-	if slackNotify == "true" {
-		slackEnable = true
+	opts := scheduler.NewOptions(e.ProjectID, e.SlackToken, e.SlackChannel, e.SlackNotify)
+
+	switch payload.Command {
+	case "start":
+		fmt.Println("It's the weekend")
+
+	case "stop":
+		if err := scheduler.Shutdown(ctx, opts); err != nil {
+			return err
+		}
+	default:
+		return errors.New("unknown command type")
 	}
 
-	opts := scheduler.NewOptions(projectID, slackAPIToken, slackChannel, slackEnable)
-
-	return scheduler.Shutdown(ctx, opts)
+	return nil
 }
 
-type SubscribedMessage struct {
+type Payload struct {
 	Command string `json:"command"`
 }
 
-func decode(payload []byte) (msgData SubscribedMessage, err error) {
-	if err = json.Unmarshal(payload, &msgData); err != nil {
+func decode(payload []byte) (p Payload, err error) {
+	if err = json.Unmarshal(payload, &p); err != nil {
 		log.Printf("Message[%v] ... Could not decode subscribing data: %v", payload, err)
 		if e, ok := err.(*json.SyntaxError); ok {
 			log.Printf("syntax error at byte offset %d", e.Offset)

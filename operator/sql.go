@@ -26,70 +26,51 @@ import (
 	sqladmin "google.golang.org/api/sqladmin/v1beta4"
 )
 
-type SQLListCall struct {
-	InstanceList *sqladmin.InstancesListCall
-	ProjectID    string
-	Error        error
+type SQLCall struct {
+	Service   *sqladmin.Service
+	Call      *sqladmin.InstancesListCall
+	ProjectID string
+	Error     error
 }
 
-type SQLShutdownCall struct {
-	TargetList *sqladmin.InstancesListResponse
-	ProjectID  string
-	Error      error
-}
-
-func SQLResource(ctx context.Context, projectID string) *SQLListCall {
-	// reporting error list
-	var res error
-
-	// create SQL service
-	sqlService, err := sqladmin.NewService(ctx)
+func SQL(ctx context.Context, projectID string) *SQLCall {
+	s, err := sqladmin.NewService(ctx)
 	if err != nil {
-		res = multierror.Append(res, err)
+		return &SQLCall{Error: err}
 	}
 
-	// get target SQL instance list
-	list := sqladmin.NewInstancesService(sqlService).List(projectID)
-
-	return &SQLListCall{
-		InstanceList: list,
-		ProjectID:    projectID,
-		Error:        res,
+	return &SQLCall{
+		Service:   s,
+		ProjectID: projectID,
+		Call:      sqladmin.NewInstancesService(s).List(projectID),
 	}
 }
 
-func (r *SQLListCall) FilterLabel(targetLabel string, flag bool) *SQLShutdownCall {
-	// reporting error list
-	var res = r.Error
-
-	list, err := r.InstanceList.Filter("userLabels." + targetLabel + "=true").Do()
-	if err != nil {
-		res = multierror.Append(res, err)
+func (r *SQLCall) Filter(labelName string, flag bool) *SQLCall {
+	if r.Error != nil {
+		return r
 	}
-
-	return &SQLShutdownCall{
-		TargetList: list,
-		ProjectID:  r.ProjectID,
-		Error:      res,
+	return &SQLCall{
+		ProjectID: r.ProjectID,
+		Call:      r.Call.Filter("userLabels." + labelName + "=true"),
 	}
 }
 
-func (r *SQLShutdownCall) ShutdownWithInterval(ctx context.Context, interval time.Duration) (*model.ShutdownReport, error) {
+func (r *SQLCall) Do(ctx context.Context, interval time.Duration) (*model.ShutdownReport, error) {
 	if r.Error != nil {
 		return nil, r.Error
+	}
+
+	targets, err := r.Call.Do()
+	if err != nil {
+		return nil, err
 	}
 
 	var res = r.Error
 	var doneRes []string
 	var alreadyRes []string
 
-	// create SQL service
-	sqlService, err := sqladmin.NewService(ctx)
-	if err != nil {
-		res = multierror.Append(res, err)
-	}
-
-	for _, instance := range r.TargetList.Items {
+	for _, instance := range targets.Items {
 		// do not change replica instance's activation policy
 		if instance.InstanceType == "READ_REPLICA_INSTANCE" {
 			continue
@@ -105,13 +86,14 @@ func (r *SQLShutdownCall) ShutdownWithInterval(ctx context.Context, interval tim
 		instance.Settings.ActivationPolicy = "NEVER"
 
 		// apply the settings
-		_, err := sqladmin.NewInstancesService(sqlService).Patch(r.ProjectID, instance.Name, instance).Do()
+		_, err := sqladmin.NewInstancesService(r.Service).Patch(r.ProjectID, instance.Name, instance).Do()
 		if err != nil {
 			res = multierror.Append(res, err)
 		}
 		doneRes = append(doneRes, instance.Name)
 		time.Sleep(interval)
 	}
+
 	log.Printf("Success in stopping SQL instances: Done.")
 
 	return &model.ShutdownReport{
