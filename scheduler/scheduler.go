@@ -34,10 +34,6 @@ const TargetLabel = "state-scheduler"
 // API call interval
 const ShutdownInterval = 50 * time.Millisecond
 
-type SubscribedMessage struct {
-	Command string `json:"command"`
-}
-
 type ShutdownOptions struct {
 	Project       string
 	SlackAPIToken string
@@ -45,7 +41,7 @@ type ShutdownOptions struct {
 	SlackEnable   bool
 }
 
-func NewSchedulerOptions(projectID, slackToken, slackChannel string, slackEnable bool) *ShutdownOptions {
+func NewOptions(projectID, slackToken, slackChannel string, slackEnable bool) *ShutdownOptions {
 	return &ShutdownOptions{
 		Project:       projectID,
 		SlackAPIToken: slackToken,
@@ -118,14 +114,14 @@ func Shutdown(ctx context.Context, op *ShutdownOptions) error {
 	parentTS, err := notifier.PostReport(countReport)
 	if err != nil {
 		errorLog = multierror.Append(errorLog, err)
-		log.Fatal("Error in Slack notification:", err)
+		log.Println("Error in Slack notification:", err)
 	}
 
 	detailReport := report.NewDetailReportList(result)
 	for _, r := range detailReport {
 		if err := notifier.PostReportThread(parentTS, r); err != nil {
 			errorLog = multierror.Append(errorLog, err)
-			log.Fatal("Error in Slack notification (thread):", err)
+			log.Println("Error in Slack notification (thread):", err)
 		}
 	}
 

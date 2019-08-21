@@ -74,7 +74,7 @@ var rootCmd = &cobra.Command{
 			timeoutSec = time.Duration(tm) * time.Second
 		}
 
-		opts := scheduler.NewSchedulerOptions(projectID, slackAPIToken, slackChannel, slackEnable)
+		opts := scheduler.NewOptions(projectID, slackAPIToken, slackChannel, slackEnable)
 
 		ctx, cancel := context.WithTimeout(context.Background(), timeoutSec)
 		defer cancel()

@@ -40,6 +40,7 @@ func ReceiveEvent(ctx context.Context, msg *pubsub.Message) error {
 	message, err := decode(msg.Data)
 	if err != nil {
 		log.Printf("Error at the fucntion 'DecodeMessage': %v", err)
+		return err
 	}
 	log.Printf("Subscribed message(Command): %v", message.Command)
 
@@ -48,15 +49,16 @@ func ReceiveEvent(ctx context.Context, msg *pubsub.Message) error {
 		slackEnable = true
 	}
 
-	opts := scheduler.NewSchedulerOptions(projectID, slackAPIToken, slackChannel, slackEnable)
-	if err != nil {
-		return err
-	}
+	opts := scheduler.NewOptions(projectID, slackAPIToken, slackChannel, slackEnable)
 
 	return scheduler.Shutdown(ctx, opts)
 }
 
-func decode(payload []byte) (msgData scheduler.SubscribedMessage, err error) {
+type SubscribedMessage struct {
+	Command string `json:"command"`
+}
+
+func decode(payload []byte) (msgData SubscribedMessage, err error) {
 	if err = json.Unmarshal(payload, &msgData); err != nil {
 		log.Printf("Message[%v] ... Could not decode subscribing data: %v", payload, err)
 		if e, ok := err.(*json.SyntaxError); ok {

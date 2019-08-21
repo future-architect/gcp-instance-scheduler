@@ -85,7 +85,7 @@ gcloud container clusters update <cluster-name> \
 
 ## Local Execution Tool
 
-gscheduler
+scheduler
 ====
 
 Shutdown instances with executing functions from your console.
@@ -100,7 +100,7 @@ You can designate project id and timeout length by using flags.
 If you use slack notification, you have to enable slack notification by adding the flag `--slackNotification`.
 
 ```
-gcp-instance-scheduler local execution entroy porint
+scheduler local execution entroy porint
 
 Usage:
   scheduler [flags]
