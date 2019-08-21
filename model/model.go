@@ -25,7 +25,7 @@ const (
 	SQL           = "SQL"
 )
 
-type ShutdownReport struct {
+type Report struct {
 	// InstanceGroup, ComputeEngine, SQL
 	InstanceType string
 	// shutdown resource names
@@ -36,7 +36,7 @@ type ShutdownReport struct {
 	SkipResources []string
 }
 
-func (r *ShutdownReport) Show() {
+func (r *Report) Show() {
 	log.Println("<<<<< " + r.InstanceType + " >>>>>")
 
 	log.Println("!REPORT!")

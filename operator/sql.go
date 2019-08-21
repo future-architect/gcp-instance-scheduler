@@ -16,7 +16,6 @@
 package operator
 
 import (
-	"log"
 	"time"
 
 	"github.com/future-architect/gcp-instance-scheduler/model"
@@ -26,70 +25,49 @@ import (
 	sqladmin "google.golang.org/api/sqladmin/v1beta4"
 )
 
-type SQLListCall struct {
-	InstanceList *sqladmin.InstancesListCall
-	ProjectID    string
-	Error        error
+type SQLCall struct {
+	s         *sqladmin.Service
+	call      *sqladmin.InstancesListCall
+	projectID string
+	error     error
 }
 
-type SQLShutdownCall struct {
-	TargetList *sqladmin.InstancesListResponse
-	ProjectID  string
-	Error      error
-}
-
-func SQLResource(ctx context.Context, projectID string) *SQLListCall {
-	// reporting error list
-	var res error
-
-	// create SQL service
-	sqlService, err := sqladmin.NewService(ctx)
+func SQL(ctx context.Context, projectID string) *SQLCall {
+	s, err := sqladmin.NewService(ctx)
 	if err != nil {
-		res = multierror.Append(res, err)
+		return &SQLCall{error: err}
 	}
 
-	// get target SQL instance list
-	list := sqladmin.NewInstancesService(sqlService).List(projectID)
-
-	return &SQLListCall{
-		InstanceList: list,
-		ProjectID:    projectID,
-		Error:        res,
+	return &SQLCall{
+		s:         s,
+		projectID: projectID,
+		call:      sqladmin.NewInstancesService(s).List(projectID),
 	}
 }
 
-func (r *SQLListCall) FilterLabel(targetLabel string, flag bool) *SQLShutdownCall {
-	// reporting error list
-	var res = r.Error
+func (r *SQLCall) Filter(labelName string, flag bool) *SQLCall {
+	if r.error != nil {
+		return r
+	}
+	r.call = r.call.Filter("userLabels." + labelName + "=true")
+	return r
+}
 
-	list, err := r.InstanceList.Filter("userLabels." + targetLabel + "=true").Do()
+func (r *SQLCall) Stop() (*model.Report, error) {
+	if r.error != nil {
+		return nil, r.error
+	}
+
+	targets, err := r.call.Do()
 	if err != nil {
-		res = multierror.Append(res, err)
+		return nil, err
 	}
 
-	return &SQLShutdownCall{
-		TargetList: list,
-		ProjectID:  r.ProjectID,
-		Error:      res,
-	}
-}
-
-func (r *SQLShutdownCall) ShutdownWithInterval(ctx context.Context, interval time.Duration) (*model.ShutdownReport, error) {
-	if r.Error != nil {
-		return nil, r.Error
-	}
-
-	var res = r.Error
+	var res = r.error
 	var doneRes []string
 	var alreadyRes []string
 
-	// create SQL service
-	sqlService, err := sqladmin.NewService(ctx)
-	if err != nil {
-		res = multierror.Append(res, err)
-	}
-
-	for _, instance := range r.TargetList.Items {
+	for _, instance := range targets.Items {
 		// do not change replica instance's activation policy
 		if instance.InstanceType == "READ_REPLICA_INSTANCE" {
 			continue
@@ -101,20 +79,64 @@ func (r *SQLShutdownCall) ShutdownWithInterval(ctx context.Context, interval tim
 			continue
 		}
 
-		// stop the target instance
+		// update policy
 		instance.Settings.ActivationPolicy = "NEVER"
 
 		// apply the settings
-		_, err := sqladmin.NewInstancesService(sqlService).Patch(r.ProjectID, instance.Name, instance).Do()
+		_, err := sqladmin.NewInstancesService(r.s).Patch(r.projectID, instance.Name, instance).Do()
 		if err != nil {
 			res = multierror.Append(res, err)
 		}
 		doneRes = append(doneRes, instance.Name)
-		time.Sleep(interval)
+		time.Sleep(CallInterval)
 	}
-	log.Printf("Success in stopping SQL instances: Done.")
 
-	return &model.ShutdownReport{
+	return &model.Report{
+		InstanceType:             model.SQL,
+		DoneResources:            doneRes,
+		AlreadyShutdownResources: alreadyRes,
+	}, res
+}
+
+func (r *SQLCall) Start() (*model.Report, error) {
+	if r.error != nil {
+		return nil, r.error
+	}
+
+	targets, err := r.call.Do()
+	if err != nil {
+		return nil, err
+	}
+
+	var res = r.error
+	var doneRes []string
+	var alreadyRes []string
+
+	for _, instance := range targets.Items {
+		// do not change replica instance's activation policy
+		if instance.InstanceType == "READ_REPLICA_INSTANCE" {
+			continue
+		}
+
+		// do not change instance's activation policy which is already "ALWAYS"
+		if instance.Settings.ActivationPolicy == "ALWAYS" {
+			alreadyRes = append(alreadyRes, instance.Name)
+			continue
+		}
+
+		// Update policy
+		instance.Settings.ActivationPolicy = "ALWAYS"
+
+		// apply the settings
+		_, err := sqladmin.NewInstancesService(r.s).Patch(r.projectID, instance.Name, instance).Do()
+		if err != nil {
+			res = multierror.Append(res, err)
+		}
+		doneRes = append(doneRes, instance.Name)
+		time.Sleep(CallInterval)
+	}
+
+	return &model.Report{
 		InstanceType:             model.SQL,
 		DoneResources:            doneRes,
 		AlreadyShutdownResources: alreadyRes,

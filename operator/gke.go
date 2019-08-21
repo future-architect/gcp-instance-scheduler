@@ -16,27 +16,24 @@
 package operator
 
 import (
+	"errors"
 	"log"
 	"strconv"
 	"strings"
-	"time"
 
 	"golang.org/x/net/context"
 	"google.golang.org/api/container/v1"
 )
 
 func ShowClusterStatus(ctx context.Context, projectID string, targetLabel string) error {
-	// create service to operate container
 	s, err := container.NewService(ctx)
 	if err != nil {
-		log.Printf("Could not create service: %v", err)
 		return err
 	}
 
 	// get all clusters list
 	clusters, err := container.NewProjectsLocationsClustersService(s).List("projects/" + projectID + "/locations/-").Do()
 	if err != nil {
-		log.Printf("Could not get GKE clusters list: %v", err)
 		return err
 	}
 
@@ -49,49 +46,66 @@ func ShowClusterStatus(ctx context.Context, projectID string, targetLabel string
 	return nil
 }
 
-func SetLabelNodePoolSize(ctx context.Context, projectID string, targetLabel string, interval time.Duration) error {
-	// create service to operate container
+func SetLabelNodePoolSize(ctx context.Context, projectID string, targetLabel string) error {
 	s, err := container.NewService(ctx)
 	if err != nil {
-		log.Printf("Could not create service: %v", err)
 		return err
 	}
 
 	// get all clusters list
 	clusters, err := container.NewProjectsLocationsClustersService(s).List("projects/" + projectID + "/locations/-").Do()
 	if err != nil {
-		log.Printf("Could not get GKE clusters list: %v", err)
 		return err
 	}
 
 	// filtering with target label
-	scheduled := filter(clusters.Clusters, targetLabel, "true")
-	for _, cluster := range scheduled {
+	for _, cluster := range filter(clusters.Clusters, targetLabel, "true") {
+		labels := cluster.ResourceLabels
+		for _, nodePool := range cluster.NodePools {
+			nodeSizeLabel := "restore-size-" + nodePool.Name
+			labels[nodeSizeLabel] = strconv.FormatInt(nodePool.InitialNodeCount, 10)
+		}
 
 		parseRegion := strings.Split(cluster.Location, "/")
 		region := parseRegion[len(parseRegion)-1]
-		labels := cluster.ResourceLabels
+		name := "projects/" + projectID + "/locations/" + region + "/clusters/" + cluster.Name
+		req := &container.SetLabelsRequest{
+			ResourceLabels: labels,
+		}
 
-		for _, nodePool := range cluster.NodePools {
-			name := "projects/" + projectID + "/locations/" + region + "/clusters/" + cluster.Name
-			nodeSizeLabel := "restore-size-" + nodePool.Name
-			labels[nodeSizeLabel] = strconv.FormatInt(nodePool.InitialNodeCount, 10)
-
-			rb := &container.SetLabelsRequest{
-				ResourceLabels: make(map[string]string),
-			}
-
-			for key, value := range labels {
-				rb.ResourceLabels[key] = value
-			}
-			_, err := container.NewProjectsLocationsClustersService(s).SetResourceLabels(name, rb).Do()
-			if err != nil {
-				log.Printf("Could not add lable to cluster: %v", err)
-				return err
-			}
-			time.Sleep(interval)
+		_, err := container.NewProjectsLocationsClustersService(s).SetResourceLabels(name, req).Do()
+		if err != nil {
+			return err
 		}
 	}
 
 	return nil
+}
+
+func GetOriginalNodePoolSize(ctx context.Context, projectID string, targetLabel string) (map[string]int64, error) {
+	s, err := container.NewService(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	// get all clusters list
+	clusters, err := container.NewProjectsLocationsClustersService(s).List("projects/" + projectID + "/locations/-").Do()
+	if err != nil {
+		return nil, err
+	}
+
+	result := make(map[string]int64)
+
+	for _, cluster := range filter(clusters.Clusters, targetLabel, "true") {
+		labels := cluster.ResourceLabels
+		for _, nodePool := range cluster.NodePools {
+			size, err := strconv.Atoi(labels["restore-size-"+nodePool.Name])
+			if err != nil {
+				return nil, errors.New("label: " + "restore-size-" + nodePool.Name + " value is not number format?")
+			}
+			result[nodePool.Name] = int64(size)
+		}
+	}
+
+	return result, nil
 }

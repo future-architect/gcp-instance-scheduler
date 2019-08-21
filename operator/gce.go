@@ -16,7 +16,6 @@
 package operator
 
 import (
-	"log"
 	"strconv"
 	"strings"
 	"time"
@@ -27,82 +26,50 @@ import (
 	"google.golang.org/api/compute/v1"
 )
 
-type GCEListCall struct {
-	AggregatedListCall *compute.InstancesAggregatedListCall
-	ProjectID          string
-	Error              error
+type ComputeEngineCall struct {
+	s         *compute.Service
+	call      *compute.InstancesAggregatedListCall
+	projectID string
+	error     error
 }
 
-type GCEShutdownCall struct {
-	TargetList *compute.InstanceAggregatedList
-	ProjectID  string
-	Error      error
-}
-
-// create instance list
-func valuesGCE(m map[string]compute.InstancesScopedList) []*compute.Instance {
-	var res []*compute.Instance
-	for _, instanceList := range m {
-		if len(instanceList.Instances) == 0 {
-			continue
-		}
-		res = append(res, instanceList.Instances...)
-	}
-	return res
-}
-
-func ComputeEngineResource(ctx context.Context, projectID string) *GCEListCall {
-	// reporting error list
-	var res error
-
-	// create service to operate instances
-	computeService, err := compute.NewService(ctx)
+func ComputeEngine(ctx context.Context, projectID string) *ComputeEngineCall {
+	s, err := compute.NewService(ctx)
 	if err != nil {
-		res = multierror.Append(res, err)
+		return &ComputeEngineCall{error: err}
 	}
 
 	// get all instances in each zone at this project
-	list := compute.NewInstancesService(computeService).AggregatedList(projectID)
-
-	return &GCEListCall{
-		AggregatedListCall: list,
-		ProjectID:          projectID,
-		Error:              res,
+	return &ComputeEngineCall{
+		s:         s,
+		projectID: projectID,
+		call:      compute.NewInstancesService(s).AggregatedList(projectID),
 	}
 }
 
-func (r *GCEListCall) FilterLabel(targetLabel string, flag bool) *GCEShutdownCall {
-	// reporting error list
-	var res = r.Error
+func (r *ComputeEngineCall) Filter(labelName string, flag bool) *ComputeEngineCall {
+	if r.error != nil {
+		return r
+	}
+	r.call = r.call.Filter("labels." + labelName + "=" + strconv.FormatBool(flag))
+	return r
+}
 
-	list, err := r.AggregatedListCall.Filter("labels." + targetLabel + "=" + strconv.FormatBool(flag)).Do()
+func (r *ComputeEngineCall) Stop() (*model.Report, error) {
+	if r.error != nil {
+		return nil, r.error
+	}
+
+	list, err := r.call.Do()
 	if err != nil {
-		res = multierror.Append(r.Error, err)
+		return nil, err
 	}
 
-	return &GCEShutdownCall{
-		TargetList: list,
-		ProjectID:  r.ProjectID,
-		Error:      res,
-	}
-}
-
-func (r *GCEShutdownCall) ShutdownWithInterval(ctx context.Context, interval time.Duration) (*model.ShutdownReport, error) {
-	if r.Error != nil {
-		return nil, r.Error
-	}
-
-	var res = r.Error
+	var res = r.error
 	var doneRes []string
 	var alreadyRes []string
 
-	// create service to operate instances
-	computeService, err := compute.NewService(ctx)
-	if err != nil {
-		res = multierror.Append(res, err)
-	}
-
-	for _, instance := range valuesGCE(r.TargetList.Items) {
+	for _, instance := range valuesGCE(list.Items) {
 		// check a instance which was already stopped
 		if instance.Status == "STOPPED" ||
 			instance.Status == "STOPPING" ||
@@ -115,19 +82,73 @@ func (r *GCEShutdownCall) ShutdownWithInterval(ctx context.Context, interval tim
 		urlElements := strings.Split(instance.Zone, "/")
 		zone := urlElements[len(urlElements)-1]
 
-		// shutdown an instance
-		_, err = compute.NewInstancesService(computeService).Stop(r.ProjectID, zone, instance.Name).Do()
+		_, err = compute.NewInstancesService(r.s).Stop(r.projectID, zone, instance.Name).Do()
 		if err != nil {
 			res = multierror.Append(res, err)
 		}
-		doneRes = append(doneRes, instance.Name)
-		time.Sleep(interval)
-	}
-	log.Printf("Success in stopping GCE instances: Done.")
 
-	return &model.ShutdownReport{
+		doneRes = append(doneRes, instance.Name)
+		time.Sleep(CallInterval)
+	}
+
+	return &model.Report{
 		InstanceType:             model.ComputeEngine,
 		DoneResources:            doneRes,
 		AlreadyShutdownResources: alreadyRes,
 	}, res
+}
+
+func (r *ComputeEngineCall) Start() (*model.Report, error) {
+	if r.error != nil {
+		return nil, r.error
+	}
+
+	list, err := r.call.Do()
+	if err != nil {
+		return nil, err
+	}
+
+	var res = r.error
+	var doneRes []string
+	var alreadyRes []string
+
+	for _, instance := range valuesGCE(list.Items) {
+		// check a instance which was already running
+		if instance.Status == "RUNNING" ||
+			instance.Status == "PROVISIONING" ||
+			instance.Status == "REPAIRING" {
+			alreadyRes = append(alreadyRes, instance.Name)
+			continue
+		}
+
+		// get zone name
+		urlElements := strings.Split(instance.Zone, "/")
+		zone := urlElements[len(urlElements)-1]
+
+		_, err = compute.NewInstancesService(r.s).Start(r.projectID, zone, instance.Name).Do()
+		if err != nil {
+			res = multierror.Append(res, err)
+		}
+
+		doneRes = append(doneRes, instance.Name)
+		time.Sleep(CallInterval)
+	}
+
+	return &model.Report{
+		InstanceType:             model.ComputeEngine,
+		DoneResources:            doneRes,
+		AlreadyShutdownResources: alreadyRes,
+	}, res
+}
+
+// create instance list
+func valuesGCE(m map[string]compute.InstancesScopedList) []*compute.Instance {
+	var res []*compute.Instance
+	for _, instanceList := range m {
+		if len(instanceList.Instances) == 0 {
+			continue
+		}
+		res = append(res, instanceList.Instances...)
+	}
+	return res
 }

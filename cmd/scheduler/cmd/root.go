@@ -22,7 +22,7 @@ import (
 	"time"
 
 	"github.com/future-architect/gcp-instance-scheduler/scheduler"
-	homedir "github.com/mitchellh/go-homedir"
+	"github.com/mitchellh/go-homedir"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"golang.org/x/net/context"
@@ -49,10 +49,10 @@ func getFlags(c *cobra.Command) (project, timeout, slackToken, slackChannel stri
 	return
 }
 
-// rootCmd represents the base command when called without any subcommands
+// rootCmd represents the base command when called without any sub commands
 var rootCmd = &cobra.Command{
-	Use:   "gscheduler",
-	Short: "gcp-instance-scheduler local execution entroy porint",
+	Use:   "scheduler",
+	Short: "gcp-instance-scheduler local execution entry point",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		projectID, timeout, slackAPIToken, slackChannel, slackEnable, err := getFlags(cmd)
 		if err != nil {
@@ -74,7 +74,7 @@ var rootCmd = &cobra.Command{
 			timeoutSec = time.Duration(tm) * time.Second
 		}
 
-		opts := scheduler.NewSchedulerOptions(projectID, slackAPIToken, slackChannel, slackEnable)
+		opts := scheduler.NewOptions(projectID, slackAPIToken, slackChannel, slackEnable)
 
 		ctx, cancel := context.WithTimeout(context.Background(), timeoutSec)
 		defer cancel()
@@ -99,9 +99,9 @@ func init() {
 	// Cobra supports persistent flags, which, if defined here,
 	// will be global for your application.
 
-	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.gscheduler.yaml)")
+	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.scheduler.yaml)")
 
-	rootCmd.PersistentFlags().StringP("project", "p", "", "project id (defautl $GCP_PROJECT)")
+	rootCmd.PersistentFlags().StringP("project", "p", "", "project id (default $GCP_PROJECT)")
 	rootCmd.PersistentFlags().String("timeout", "60", "set timeout seconds")
 	rootCmd.PersistentFlags().String("slackToken", "", "SlackAPI token (should enable slack notify)")
 	rootCmd.PersistentFlags().String("slackChannel", "", "Slack Channel name (should enable slack notify)")
@@ -124,9 +124,9 @@ func initConfig() {
 			os.Exit(1)
 		}
 
-		// Search config in home directory with name ".gscheduler" (without extension).
+		// Search config in home directory with name ".scheduler" (without extension).
 		viper.AddConfigPath(home)
-		viper.SetConfigName(".gscheduler")
+		viper.SetConfigName(".scheduler")
 	}
 
 	viper.AutomaticEnv() // read in environment variables that match

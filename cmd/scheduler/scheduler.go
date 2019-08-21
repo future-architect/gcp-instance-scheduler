@@ -15,7 +15,7 @@
  */
 package main
 
-import "github.com/future-architect/gcp-instance-scheduler/cmd/gscheduler/cmd"
+import "github.com/future-architect/gcp-instance-scheduler/cmd/scheduler/cmd"
 
 func main() {
 	cmd.Execute()

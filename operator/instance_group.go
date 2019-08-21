@@ -16,7 +16,6 @@
 package operator
 
 import (
-	"log"
 	"strings"
 	"time"
 
@@ -28,24 +27,208 @@ import (
 	"google.golang.org/api/container/v1"
 )
 
-type InstanceGroupListCall struct {
-	InstanceGroupList *compute.InstanceGroupManagerAggregatedList
-	TemplateListCall  *compute.InstanceTemplatesListCall
-	ProjectID         string
-	Error             error
+type InstanceGroupCall struct {
+	instanceGroupList *compute.InstanceGroupManagerAggregatedList
+	templateListCall  *compute.InstanceTemplatesListCall
+	targetLabel       string
+	projectID         string
+	error             error
+	s                 *compute.Service
+	ctx               context.Context
 }
 
-type InstanceGroupShutdownCall struct {
-	InstanceGroupList *compute.InstanceGroupManagerAggregatedList
-	TemplateList      *compute.InstanceTemplateList
-	TargetLabel       string
-	ProjectID         string
-	Error             error
+func InstanceGroup(ctx context.Context, projectID string) *InstanceGroupCall {
+	s, err := compute.NewService(ctx)
+	if err != nil {
+		return &InstanceGroupCall{error: err}
+	}
+
+	// get all instance group mangers list
+	managerList, err := compute.NewInstanceGroupManagersService(s).AggregatedList(projectID).Do()
+	if err != nil {
+		return &InstanceGroupCall{error: err}
+	}
+
+	// get all templates list
+	return &InstanceGroupCall{
+		s:                 s,
+		templateListCall:  compute.NewInstanceTemplatesService(s).List(projectID),
+		instanceGroupList: managerList,
+		projectID:         projectID,
+		ctx:               ctx,
+	}
 }
 
-// search templates name in Set of instance group name
-func contains(instanceGroup set.Set, instanceTemplateName string) bool {
-	return instanceGroup.Contains(instanceTemplateName)
+func (r *InstanceGroupCall) Filter(labelName string, flag bool) *InstanceGroupCall {
+	if r.error != nil {
+		return r
+	}
+	r.templateListCall = r.templateListCall.Filter("properties.labels." + labelName + "=true")
+	return r
+}
+
+func (r *InstanceGroupCall) Resize(size int64) (*model.Report, error) {
+	if r.error != nil {
+		return nil, r.error
+	}
+
+	templateList, err := r.templateListCall.Do()
+	if err != nil {
+		return nil, err
+	}
+
+	var res = r.error
+	var doneRes []string
+	var alreadyRes []string
+
+	for _, manager := range valuesIG(r.instanceGroupList.Items) {
+		// get manager zone name
+		zoneUrlElements := strings.Split(manager.Zone, "/")
+		zone := zoneUrlElements[len(zoneUrlElements)-1]
+
+		// get manager's template name
+		tmpUrlElements := strings.Split(manager.InstanceTemplate, "/")
+		managerTemplate := tmpUrlElements[len(tmpUrlElements)-1]
+
+		// add instance group name of cluster node pool to Set
+		instanceGroupSet, err := r.getGKEInstanceGroup()
+		if err != nil {
+			res = multierror.Append(res, err)
+			continue
+		}
+
+		// add instance group name to Set
+		for _, t := range templateList.Items {
+			instanceGroupSet.Add(t.Name)
+		}
+
+		// compare filtered instance template name and manager which is created by template
+		if instanceGroupSet.Contains(managerTemplate) {
+			if !manager.Status.IsStable {
+				continue
+			}
+
+			if manager.TargetSize == 0 {
+				alreadyRes = append(alreadyRes, manager.Name)
+				continue
+			}
+
+			ms := compute.NewInstanceGroupManagersService(r.s)
+			if _, err := ms.Resize(r.projectID, zone, manager.Name, size).Do(); err != nil {
+				res = multierror.Append(res, err)
+				continue
+			}
+			doneRes = append(doneRes, manager.Name)
+		}
+
+		time.Sleep(CallInterval)
+	}
+
+	return &model.Report{
+		InstanceType:             model.InstanceGroup,
+		DoneResources:            doneRes,
+		AlreadyShutdownResources: alreadyRes,
+	}, res
+}
+
+func (r *InstanceGroupCall) Recovery() (*model.Report, error) {
+	if r.error != nil {
+		return nil, r.error
+	}
+
+	templateList, err := r.templateListCall.Do()
+	if err != nil {
+		return nil, err
+	}
+
+	var res = r.error
+	var doneRes []string
+	var alreadyRes []string
+
+	for _, manager := range valuesIG(r.instanceGroupList.Items) {
+		// get manager zone name
+		zoneUrlElements := strings.Split(manager.Zone, "/")
+		zone := zoneUrlElements[len(zoneUrlElements)-1]
+
+		// get manager's template name
+		tmpUrlElements := strings.Split(manager.InstanceTemplate, "/")
+		managerTemplate := tmpUrlElements[len(tmpUrlElements)-1]
+
+		// add instance group name of cluster node pool to Set
+		instanceGroupSet, err := r.getGKEInstanceGroup()
+		if err != nil {
+			res = multierror.Append(res, err)
+			continue
+		}
+
+		// add instance group name to Set
+		for _, t := range templateList.Items {
+			instanceGroupSet.Add(t.Name)
+		}
+
+		// compare filtered instance template name and manager which is created by template
+		if instanceGroupSet.Contains(managerTemplate) {
+			if !manager.Status.IsStable {
+				continue
+			}
+
+			// 元のサイズを取得
+			sizeMap, err := GetOriginalNodePoolSize(r.ctx, r.projectID, r.targetLabel)
+			if err != nil {
+				res = multierror.Append(res, err)
+				continue
+			}
+
+			originalSize := sizeMap[managerTemplate]
+
+			if manager.TargetSize == originalSize {
+				alreadyRes = append(alreadyRes, manager.Name)
+				continue
+			}
+
+			ms := compute.NewInstanceGroupManagersService(r.s)
+			if _, err := ms.Resize(r.projectID, zone, manager.Name, originalSize).Do(); err != nil {
+				res = multierror.Append(res, err)
+				continue
+			}
+			doneRes = append(doneRes, manager.Name)
+		}
+
+		time.Sleep(CallInterval)
+	}
+
+	return &model.Report{
+		InstanceType:             model.InstanceGroup,
+		DoneResources:            doneRes,
+		AlreadyShutdownResources: alreadyRes,
+	}, res
+}
+
+// get target GKE instance group Set
+func (r *InstanceGroupCall) getGKEInstanceGroup() (set.Set, error) {
+	s, err := container.NewService(r.ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	// get all clusters list
+	clusters, err := container.NewProjectsLocationsClustersService(s).List("projects/" + r.projectID + "/locations/-").Do()
+	if err != nil {
+		return nil, err
+	}
+
+	res := set.NewSet()
+	for _, cluster := range filter(clusters.Clusters, r.targetLabel, "true") {
+		for _, nodePool := range cluster.NodePools {
+			for _, gkeInstanceGroup := range nodePool.InstanceGroupUrls {
+				tmpUrlElements := strings.Split(gkeInstanceGroup, "/")
+				managerTemplate := tmpUrlElements[len(tmpUrlElements)-1]
+				// remove suffix(*-grp)
+				res.Add(managerTemplate[:len(managerTemplate)-4])
+			}
+		}
+	}
+	return res, nil
 }
 
 // create instance group manager list
@@ -62,6 +245,10 @@ func valuesIG(m map[string]compute.InstanceGroupManagersScopedList) []*compute.I
 
 // grep target cluster and create target cluster list
 func filter(l []*container.Cluster, label string, value string) []*container.Cluster {
+	if label == "" { //TODO Temp impl
+		return l
+	}
+
 	var res []*container.Cluster
 	for _, cluster := range l {
 		if cluster.ResourceLabels[label] == value {
@@ -69,142 +256,4 @@ func filter(l []*container.Cluster, label string, value string) []*container.Clu
 		}
 	}
 	return res
-}
-
-// get target GKE instance group Set
-func getGKEInstanceGroup(ctx context.Context, targetLabel string, projectID string) (set.Set, error) {
-	// create service to operate container
-	s, err := container.NewService(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	// get all clusters list
-	clusters, err := container.NewProjectsLocationsClustersService(s).List("projects/" + projectID + "/locations/-").Do()
-	if err != nil {
-		return nil, err
-	}
-
-	// filtering with target label
-	scheduled := filter(clusters.Clusters, targetLabel, "true")
-	res := set.NewSet()
-	for _, cluster := range scheduled {
-		for _, nodePool := range cluster.NodePools {
-			for _, gkeInstanceGroup := range nodePool.InstanceGroupUrls {
-				tmpUrlElements := strings.Split(gkeInstanceGroup, "/")
-				managerTemplate := tmpUrlElements[len(tmpUrlElements)-1]
-				// remove suffix(*-grp)
-				res.Add(managerTemplate[:len(managerTemplate)-4])
-			}
-		}
-	}
-	return res, nil
-}
-
-func InstanceGroupResource(ctx context.Context, projectID string) *InstanceGroupListCall {
-	// reporting error list
-	var res error
-
-	// create service to operate instances
-	s, err := compute.NewService(ctx)
-	if err != nil {
-		res = multierror.Append(res, err)
-	}
-
-	// get all instance group mangers list
-	managerList, err := compute.NewInstanceGroupManagersService(s).AggregatedList(projectID).Do()
-	if err != nil {
-		res = multierror.Append(res, err)
-	}
-
-	// get all templates list
-	list := compute.NewInstanceTemplatesService(s).List(projectID)
-
-	return &InstanceGroupListCall{
-		TemplateListCall:  list,
-		InstanceGroupList: managerList,
-		ProjectID:         projectID,
-		Error:             res,
-	}
-}
-
-func (r *InstanceGroupListCall) FilterLabel(targetLabel string, flag bool) *InstanceGroupShutdownCall {
-	// reporting error list
-	var res = r.Error
-
-	templateList, err := r.TemplateListCall.Filter("properties.labels." + targetLabel + "=true").Do()
-	if err != nil {
-		res = multierror.Append(res, err)
-	}
-
-	return &InstanceGroupShutdownCall{
-		TemplateList:      templateList,
-		InstanceGroupList: r.InstanceGroupList,
-		TargetLabel:       targetLabel,
-		ProjectID:         r.ProjectID,
-		Error:             res,
-	}
-}
-
-func (r *InstanceGroupShutdownCall) ShutdownWithInterval(ctx context.Context, interval time.Duration) (*model.ShutdownReport, error) {
-	if r.Error != nil {
-		return nil, r.Error
-	}
-
-	var res = r.Error
-	var doneRes []string
-	var alreadyRes []string
-
-	// create service to operate instances
-	s, err := compute.NewService(ctx)
-	if err != nil {
-		res = multierror.Append(res, err)
-	}
-
-	// instance group manager service
-	ms := compute.NewInstanceGroupManagersService(s)
-
-	for _, manager := range valuesIG(r.InstanceGroupList.Items) {
-		// get manager zone name
-		zoneUrlElements := strings.Split(manager.Zone, "/")
-		zone := zoneUrlElements[len(zoneUrlElements)-1]
-
-		// get manager's template name
-		tmpUrlElements := strings.Split(manager.InstanceTemplate, "/")
-		managerTemplate := tmpUrlElements[len(tmpUrlElements)-1]
-
-		// add instance group name of cluster node pool to Set
-		instanceGroupSet, err := getGKEInstanceGroup(ctx, r.TargetLabel, r.ProjectID)
-		if err != nil {
-			res = multierror.Append(res, err)
-		}
-
-		// add instance group name to Set
-		for _, template := range r.TemplateList.Items {
-			instanceGroupSet.Add(template.Name)
-		}
-
-		// compare filtered instance template name and manager which is created by template
-		if contains(instanceGroupSet, managerTemplate) {
-			if !manager.Status.IsStable {
-				continue
-			}
-			if manager.TargetSize == 0 {
-				alreadyRes = append(alreadyRes, manager.Name)
-				continue
-			}
-			if _, err := ms.Resize(r.ProjectID, zone, manager.Name, 0).Do(); err != nil {
-				res = multierror.Append(res, err)
-			}
-			doneRes = append(doneRes, manager.Name)
-		}
-		time.Sleep(interval)
-	}
-	log.Printf("Success in stopping InstanceGroup: Done.")
-
-	return &model.ShutdownReport{
-		InstanceType:             model.InstanceGroup,
-		DoneResources:            doneRes,
-		AlreadyShutdownResources: alreadyRes,
-	}, res
 }
