@@ -60,7 +60,6 @@ func SetLabelNodePoolSize(ctx context.Context, projectID string, targetLabel str
 
 	// filtering with target label
 	for _, cluster := range filter(clusters.Clusters, targetLabel, "true") {
-
 		labels := cluster.ResourceLabels
 		for _, nodePool := range cluster.NodePools {
 			nodeSizeLabel := "restore-size-" + nodePool.Name

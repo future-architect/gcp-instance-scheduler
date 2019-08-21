@@ -113,6 +113,7 @@ func (r *ComputeEngineCall) Start() (*model.Report, error) {
 	var alreadyRes []string
 
 	for _, instance := range valuesGCE(list.Items) {
+		// check a instance which was already running
 		if instance.Status == "RUNNING" ||
 			instance.Status == "PROVISIONING" ||
 			instance.Status == "REPAIRING" {
