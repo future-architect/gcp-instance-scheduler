@@ -5,6 +5,7 @@ import (
 	"errors"
 	"github.com/future-architect/gcp-instance-scheduler/scheduler"
 	"github.com/spf13/cobra"
+	"log"
 	"os"
 	"time"
 )
@@ -19,6 +20,7 @@ var restartCmd = &cobra.Command{
 			return err
 		}
 
+		log.Printf("Project ID: %v", projectID)
 		if projectID == "" {
 			return errors.New("not found project variable")
 		}

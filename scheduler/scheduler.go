@@ -48,7 +48,6 @@ func NewOptions(projectID, slackToken, slackChannel string, slackEnable bool) *O
 
 func Shutdown(ctx context.Context, op *Options) error {
 	projectID := op.Project
-	log.Printf("Project ID: %v", projectID)
 
 	var errorLog error
 	var result []*model.Report
@@ -112,7 +111,6 @@ func Shutdown(ctx context.Context, op *Options) error {
 
 func Restart(ctx context.Context, op *Options) error {
 	projectID := op.Project
-	log.Printf("Project ID: %v", projectID)
 
 	var errorLog error
 	var result []*model.Report
@@ -124,14 +122,14 @@ func Restart(ctx context.Context, op *Options) error {
 	}
 	result = append(result, rpt)
 
-	rpt, err = operator.ComputeEngine(ctx, projectID).Filter(Label, true).Stop()
+	rpt, err = operator.ComputeEngine(ctx, projectID).Filter(Label, true).Start()
 	if err != nil {
 		errorLog = multierror.Append(errorLog, err)
 		log.Printf("Some error occurred in starting compute engine: %v\n", err)
 	}
 	result = append(result, rpt)
 
-	rpt, err = operator.SQL(ctx, projectID).Filter(Label, true).Stop()
+	rpt, err = operator.SQL(ctx, projectID).Filter(Label, true).Start()
 	if err != nil {
 		errorLog = multierror.Append(errorLog, err)
 		log.Printf("Some error occurred in starting SQL: %v\n", err)

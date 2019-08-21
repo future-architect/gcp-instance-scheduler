@@ -52,6 +52,7 @@ func ReceiveEvent(ctx context.Context, msg *pubsub.Message) error {
 	}
 	log.Printf("Subscribed message(Command): %v", payload.Command)
 
+	log.Printf("Project ID: %v", e.ProjectID)
 	opts := scheduler.NewOptions(e.ProjectID, e.SlackToken, e.SlackChannel, e.SlackNotify)
 
 	switch payload.Command {
