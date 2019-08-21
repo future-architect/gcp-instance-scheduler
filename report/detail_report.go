@@ -14,7 +14,7 @@ type DetailReport struct {
 	SkipResources            []string
 }
 
-func NewDetailReports(result []*model.ShutdownReport) []*DetailReport {
+func NewDetailReports(result []*model.Report) []*DetailReport {
 	var drList []*DetailReport
 
 	for _, r := range result {

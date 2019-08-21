@@ -17,7 +17,6 @@ package scheduler
 
 import (
 	"log"
-	"time"
 
 	"github.com/future-architect/gcp-instance-scheduler/model"
 	"github.com/future-architect/gcp-instance-scheduler/notice"
@@ -30,9 +29,6 @@ import (
 
 // Operation target label name
 const Label = "state-scheduler"
-
-// API call interval
-const CallInterval = 50 * time.Millisecond
 
 type Options struct {
 	Project      string
@@ -55,9 +51,9 @@ func Shutdown(ctx context.Context, op *Options) error {
 	log.Printf("Project ID: %v", projectID)
 
 	var errorLog error
-	var result []*model.ShutdownReport
+	var result []*model.Report
 
-	if err := operator.SetLabelNodePoolSize(ctx, projectID, Label, CallInterval); err != nil {
+	if err := operator.SetLabelNodePoolSize(ctx, projectID, Label); err != nil {
 		errorLog = multierror.Append(errorLog, err)
 		log.Printf("Error in setting labels on GKE cluster: %v", err)
 	}
@@ -67,7 +63,7 @@ func Shutdown(ctx context.Context, op *Options) error {
 		log.Printf("Error in stopping GKE: %v", err)
 	}
 
-	rpt, err := operator.InstanceGroup(ctx, projectID).Filter(Label, true).Do(ctx, CallInterval)
+	rpt, err := operator.InstanceGroup(ctx, projectID).Filter(Label, true).Resize(0)
 	if err != nil {
 		errorLog = multierror.Append(errorLog, err)
 		log.Printf("Some error occured in stopping gce instances: %v", err)
@@ -75,7 +71,7 @@ func Shutdown(ctx context.Context, op *Options) error {
 	result = append(result, rpt)
 	rpt.Show()
 
-	rpt, err = operator.ComputeEngine(ctx, projectID).Filter(Label, true).Do(ctx, CallInterval)
+	rpt, err = operator.ComputeEngine(ctx, projectID).Filter(Label, true).Stop()
 	if err != nil {
 		errorLog = multierror.Append(errorLog, err)
 		log.Printf("Some error occured in stopping gce instances: %v", err)
@@ -83,7 +79,7 @@ func Shutdown(ctx context.Context, op *Options) error {
 	result = append(result, rpt)
 	rpt.Show()
 
-	rpt, err = operator.SQL(ctx, projectID).Filter(Label, true).Do(ctx, CallInterval)
+	rpt, err = operator.SQL(ctx, projectID).Filter(Label, true).Stop()
 	if err != nil {
 		errorLog = multierror.Append(errorLog, err)
 		log.Printf("Some error occured in stopping sql instances: %v", err)
@@ -99,12 +95,11 @@ func Shutdown(ctx context.Context, op *Options) error {
 	n := notice.NewSlackNotifier(op.SlackToken, op.SlackChannel)
 	parentTS, err := n.PostReport(report.NewResourceCountReport(result, projectID))
 	if err != nil {
-		errorLog = multierror.Append(errorLog, err)
-		log.Println("Error in Slack notification:", err)
+		log.Println("error in Slack notification:", err)
+		return multierror.Append(errorLog, err)
 	}
 
-	detailReport := report.NewDetailReports(result)
-	for _, r := range detailReport {
+	for _, r := range report.NewDetailReports(result) {
 		if err := n.PostReportThread(parentTS, r); err != nil {
 			errorLog = multierror.Append(errorLog, err)
 			log.Println("Error in Slack notification (thread):", err)
@@ -115,31 +110,31 @@ func Shutdown(ctx context.Context, op *Options) error {
 	return errorLog
 }
 
-func Reboot(ctx context.Context, op *Options) error {
+func Restart(ctx context.Context, op *Options) error {
 	projectID := op.Project
 	log.Printf("Project ID: %v", projectID)
 
 	var errorLog error
-	var result []*model.ShutdownReport
+	var result []*model.Report
 
-	rpt, err := operator.InstanceGroup(ctx, projectID).Filter(Label, true).Do(ctx, CallInterval)
+	rpt, err := operator.InstanceGroup(ctx, projectID).Filter(Label, true).Recovery()
 	if err != nil {
 		errorLog = multierror.Append(errorLog, err)
-		log.Printf("Some error occured in stopping gce instances: %v", err)
+		log.Printf("Some error occurred in starting instances group: %v\n", err)
 	}
 	result = append(result, rpt)
 
-	rpt, err = operator.ComputeEngine(ctx, projectID).Filter(Label, true).Do(ctx, CallInterval)
+	rpt, err = operator.ComputeEngine(ctx, projectID).Filter(Label, true).Stop()
 	if err != nil {
 		errorLog = multierror.Append(errorLog, err)
-		log.Printf("Some error occured in stopping gce instances: %v", err)
+		log.Printf("Some error occurred in starting compute engine: %v\n", err)
 	}
 	result = append(result, rpt)
 
-	rpt, err = operator.SQL(ctx, projectID).Filter(Label, true).Do(ctx, CallInterval)
+	rpt, err = operator.SQL(ctx, projectID).Filter(Label, true).Stop()
 	if err != nil {
 		errorLog = multierror.Append(errorLog, err)
-		log.Printf("Some error occured in stopping sql instances: %v", err)
+		log.Printf("Some error occurred in starting SQL: %v\n", err)
 	}
 	result = append(result, rpt)
 
@@ -151,12 +146,11 @@ func Reboot(ctx context.Context, op *Options) error {
 	n := notice.NewSlackNotifier(op.SlackToken, op.SlackChannel)
 	parentTS, err := n.PostReport(report.NewResourceCountReport(result, projectID))
 	if err != nil {
-		errorLog = multierror.Append(errorLog, err)
-		log.Println("Error in Slack notification:", err)
+		log.Println("error in Slack notification:", err)
+		return multierror.Append(errorLog, err)
 	}
 
-	detailReport := report.NewDetailReports(result)
-	for _, r := range detailReport {
+	for _, r := range report.NewDetailReports(result) {
 		if err := n.PostReportThread(parentTS, r); err != nil {
 			errorLog = multierror.Append(errorLog, err)
 			log.Println("Error in Slack notification (thread):", err)

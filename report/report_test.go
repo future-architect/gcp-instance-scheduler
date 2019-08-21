@@ -16,12 +16,12 @@ var input = `[
 	]`
 
 func TestCount(t *testing.T) {
-	var shutdownReport []model.ShutdownReport
+	var shutdownReport []model.Report
 	if err := json.Unmarshal([]byte(input), &shutdownReport); err != nil {
 		t.Fatal("test data is invalid: parse failed:", err)
 	}
 
-	var execReport []*model.ShutdownReport
+	var execReport []*model.Report
 	for i := 0; i < len(shutdownReport); i++ {
 		execReport = append(execReport, &shutdownReport[i])
 	}
@@ -63,12 +63,12 @@ func TestCount(t *testing.T) {
 }
 
 func TestDetail(t *testing.T) {
-	var shutdownReport []model.ShutdownReport
+	var shutdownReport []model.Report
 	if err := json.Unmarshal([]byte(input), &shutdownReport); err != nil {
 		t.Fatal("test data is invalid parse failed:", err)
 	}
 
-	var execReport []*model.ShutdownReport
+	var execReport []*model.Report
 	for i := 0; i < len(shutdownReport); i++ {
 		execReport = append(execReport, &shutdownReport[i])
 	}

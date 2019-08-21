@@ -20,7 +20,7 @@ type ResourceCountReport struct {
 	Padding           map[string]int
 }
 
-func NewResourceCountReport(result []*model.ShutdownReport, projectID string) *ResourceCountReport {
+func NewResourceCountReport(result []*model.Report, projectID string) *ResourceCountReport {
 	var icList []InstanceCount
 
 	for _, r := range result {

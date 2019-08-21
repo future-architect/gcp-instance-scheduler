@@ -41,7 +41,7 @@ func getFieldValue(e interface{}, field string) interface{} {
 func createHeader(pad map[string]int, project string) string {
 	text := fmt.Sprintf("[Project: %s] Instances Shutdown Report <%s>\n", project, getDate())
 
-	fieldList := getFieldNameList(&model.ShutdownReport{})
+	fieldList := getFieldNameList(&model.Report{})
 	for i := 0; i < len(fieldList); i++ {
 		fieldName := fieldList[i]
 		if i == len(fieldList)-1 {

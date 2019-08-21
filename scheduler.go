@@ -18,7 +18,6 @@ package function
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"log"
 
 	"cloud.google.com/go/pubsub"
@@ -57,8 +56,9 @@ func ReceiveEvent(ctx context.Context, msg *pubsub.Message) error {
 
 	switch payload.Command {
 	case "start":
-		fmt.Println("It's the weekend")
-
+		if err := scheduler.Restart(ctx, opts); err != nil {
+			return err
+		}
 	case "stop":
 		if err := scheduler.Shutdown(ctx, opts); err != nil {
 			return err
