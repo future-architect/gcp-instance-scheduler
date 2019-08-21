@@ -20,18 +20,11 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"time"
 
 	"cloud.google.com/go/pubsub"
 	"github.com/future-architect/gcp-instance-scheduler/scheduler"
 	"golang.org/x/net/context"
 )
-
-// Operation target label name
-const TargetLabel = "state-scheduler"
-
-// API call interval
-const ShutdownInterval = 50 * time.Millisecond
 
 func ReceiveEvent(ctx context.Context, msg *pubsub.Message) error {
 

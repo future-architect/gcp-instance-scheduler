@@ -85,11 +85,11 @@ gcloud container clusters update <cluster-name> \
 gscheduler
 ====
 
-Shutdown instances with executing functinos from your console.
+Shutdown instances with executing functions from your console.
 
 ### Install
 
-`go get -v github.com/future-architect/gcp-instance-scheduler/cmd/gscheduler`
+`go get -v github.com/future-architect/gcp-instance-scheduler/cmd/scheduler`
 
 ### Usage
 
@@ -100,7 +100,7 @@ If you use slack notification, you have to enable slack notification by adding t
 gcp-instance-scheduler local execution entroy porint
 
 Usage:
-  gscheduler [flags]
+  scheduler [flags]
 
 Flags:
       --config string         config file (default is $HOME/.gscheduler.yaml)
@@ -112,11 +112,11 @@ Flags:
       --timeout string        set timeout seconds (default "60")
   -t, --toggle                Help message for toggle
 ``` 
-Following valiables are used when you didn't designate these flags.
+Following variables are used when you did not designate these flags.
 
 |#  |flags                  |variables       |
 |---|-----------------------|----------------|
-| 1 |project(p)             |GCP_PROEJCT     |
+| 1 |project(p)             |GCP_PROJECT     |
 | 2 |slackAPIToken          |SLACK_API_TOKEN |
 | 3 |slackChannel           |SLACK_CHANNEL   |
 
