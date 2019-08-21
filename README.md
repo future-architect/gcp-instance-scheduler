@@ -9,7 +9,7 @@ Tools that shutdown GCP Instance on your schedule.
 * Shutdown target
    * GCE, GKE, SQL
    * The label `state-scheduler: true` is required to stop / resume the instance.
-   * In order to be processed, it is necessary to assign a label to Instance, InstanceGroup, or Cluster.
+   * In order to be processed, it is necessary to assign a label to Instance, InstanceGroup or Cluster.
    If a label is assigned to Cluster or InstanceGroup, this tool will reduce the size of InstanceGroup to 0.   
 * Architecture
   * Cloud Scheduler --> Pub/Sub --> CloudFunction
