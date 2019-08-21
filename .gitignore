@@ -16,3 +16,5 @@
 ### Goland ###
 .idea
 
+# Prohibit accidentally committing gcp credentials file
+*.json
