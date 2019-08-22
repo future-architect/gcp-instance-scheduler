@@ -121,6 +121,7 @@ func Restart(ctx context.Context, op *Options) error {
 		log.Printf("Some error occurred in starting instances group: %v\n", err)
 	}
 	result = append(result, rpt)
+	rpt.Show()
 
 	rpt, err = operator.ComputeEngine(ctx, projectID).Filter(Label, true).Start()
 	if err != nil {
@@ -128,6 +129,7 @@ func Restart(ctx context.Context, op *Options) error {
 		log.Printf("Some error occurred in starting compute engine: %v\n", err)
 	}
 	result = append(result, rpt)
+	rpt.Show()
 
 	rpt, err = operator.SQL(ctx, projectID).Filter(Label, true).Start()
 	if err != nil {
@@ -135,6 +137,7 @@ func Restart(ctx context.Context, op *Options) error {
 		log.Printf("Some error occurred in starting SQL: %v\n", err)
 	}
 	result = append(result, rpt)
+	rpt.Show()
 
 	if !op.SlackEnable {
 		log.Printf("done.")

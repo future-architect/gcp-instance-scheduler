@@ -37,17 +37,15 @@ type Report struct {
 }
 
 func (r *Report) Show() {
-	log.Println("<<<<< " + r.InstanceType + " >>>>>")
+	log.Println("[" + r.InstanceType + "]")
 
-	log.Println("!REPORT!")
-	log.Println("[Shutdown Resource]")
-
-	for i, resource := range r.DoneResources {
-		log.Printf(">> Resouce(%v): %v\n", i+1, resource)
+	log.Printf("└- Shutdown Resource: %v", len(r.DoneResources))
+	for _, resource := range r.DoneResources {
+		log.Printf("  └-- %v\n", resource)
 	}
 
-	log.Println("[Already Shutdown Resource]")
-	for i, resource := range r.AlreadyShutdownResources {
-		log.Printf(">> Resouce(%v): %v\n", i+1, resource)
+	log.Printf("└- Already Shutdown Resource: %v", len(r.AlreadyShutdownResources))
+	for _, resource := range r.AlreadyShutdownResources {
+		log.Printf("    └-- %v\n", resource)
 	}
 }
