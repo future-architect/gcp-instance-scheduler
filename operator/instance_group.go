@@ -145,14 +145,19 @@ func (r *InstanceGroupCall) Recovery() (*model.Report, error) {
 	var doneRes []string
 	var alreadyRes []string
 
+	sizeMap, err := GetOriginalNodePoolSize(r.ctx, r.projectID, r.targetLabel)
+	if err != nil {
+		return nil, err
+	}
+
 	for _, manager := range valuesIG(r.instanceGroupList.Items) {
 		// get manager zone name
 		zoneUrlElements := strings.Split(manager.Zone, "/")
-		zone := zoneUrlElements[len(zoneUrlElements)-1]
+		zone := zoneUrlElements[len(zoneUrlElements)-1] // ex) us-central1-a
 
 		// get manager's template name
 		tmpUrlElements := strings.Split(manager.InstanceTemplate, "/")
-		managerTemplate := tmpUrlElements[len(tmpUrlElements)-1]
+		instanceTemplateName := tmpUrlElements[len(tmpUrlElements)-1] // ex) gke-standard-cluster-1-default-pool-f789c8df
 
 		// add instance group name of cluster node pool to Set
 		instanceGroupSet, err := r.getGKEInstanceGroup()
@@ -167,19 +172,15 @@ func (r *InstanceGroupCall) Recovery() (*model.Report, error) {
 		}
 
 		// compare filtered instance template name and manager which is created by template
-		if instanceGroupSet.Contains(managerTemplate) {
+		if instanceGroupSet.Contains(instanceTemplateName) {
 			if !manager.Status.IsStable {
 				continue
 			}
 
-			// 元のサイズを取得
-			sizeMap, err := GetOriginalNodePoolSize(r.ctx, r.projectID, r.targetLabel)
-			if err != nil {
-				res = multierror.Append(res, err)
-				continue
-			}
+			split := strings.Split(manager.InstanceGroup, "/")
+			instanceGroupName := split[len(split)-1]
 
-			originalSize := sizeMap[managerTemplate]
+			originalSize := sizeMap[instanceGroupName]
 
 			if manager.TargetSize == originalSize {
 				alreadyRes = append(alreadyRes, manager.Name)

@@ -16,6 +16,7 @@
 package operator
 
 import (
+	"errors"
 	"strconv"
 	"strings"
 	"time"
@@ -71,9 +72,8 @@ func (r *ComputeEngineCall) Stop() (*model.Report, error) {
 
 	for _, instance := range valuesGCE(list.Items) {
 		// check a instance which was already stopped
-		if instance.Status == "STOPPED" ||
-			instance.Status == "STOPPING" ||
-			instance.Status == "TERMINATED" {
+		if instance.Status == "STOPPED" || instance.Status == "STOPPING" || instance.Status == "TERMINATED" ||
+			instance.Status == "PROVISIONING" || instance.Status == "REPAIRING" {
 			alreadyRes = append(alreadyRes, instance.Name)
 			continue
 		}
@@ -84,7 +84,7 @@ func (r *ComputeEngineCall) Stop() (*model.Report, error) {
 
 		_, err = compute.NewInstancesService(r.s).Stop(r.projectID, zone, instance.Name).Do()
 		if err != nil {
-			res = multierror.Append(res, err)
+			res = multierror.Append(res, errors.New(instance.Name+" stopping failed: %v"+err.Error()))
 		}
 
 		doneRes = append(doneRes, instance.Name)
@@ -114,9 +114,7 @@ func (r *ComputeEngineCall) Start() (*model.Report, error) {
 
 	for _, instance := range valuesGCE(list.Items) {
 		// check a instance which was already running
-		if instance.Status == "RUNNING" ||
-			instance.Status == "PROVISIONING" ||
-			instance.Status == "REPAIRING" {
+		if instance.Status == "RUNNING" || instance.Status == "PROVISIONING" || instance.Status == "REPAIRING" {
 			alreadyRes = append(alreadyRes, instance.Name)
 			continue
 		}

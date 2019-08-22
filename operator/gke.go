@@ -82,6 +82,7 @@ func SetLabelNodePoolSize(ctx context.Context, projectID string, targetLabel str
 	return nil
 }
 
+// GetOriginalNodePoolSize returns map that key=instanceGroupName and value=originalSize
 func GetOriginalNodePoolSize(ctx context.Context, projectID string, targetLabel string) (map[string]int64, error) {
 	s, err := container.NewService(ctx)
 	if err != nil {
@@ -103,7 +104,14 @@ func GetOriginalNodePoolSize(ctx context.Context, projectID string, targetLabel 
 			if err != nil {
 				return nil, errors.New("label: " + "restore-size-" + nodePool.Name + " value is not number format?")
 			}
-			result[nodePool.Name] = int64(size)
+
+			for _, url := range nodePool.InstanceGroupUrls {
+				// u;rl is below format
+				// e.g. https://www.googleapis.com/compute/v1/projects/{ProjectID}/zones/us-central1-a/instanceGroupManagers/gke-standard-cluster-1-default-pool-1234abcd-grp
+				urlSplit := strings.Split(url, "/")
+				instanceGroupName := urlSplit[len(urlSplit)-1]
+				result[instanceGroupName] = int64(size)
+			}
 		}
 	}
 
