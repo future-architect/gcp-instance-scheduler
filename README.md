@@ -135,7 +135,7 @@ gcloud functions deploy ReceiveEvent --project <project-id> \
   --set-env-vars SLACK_API_TOKEN=<slack-api-token> \
   --set-env-vars SLACK_CHANNEL=<slack-channel-name>
 
-# Create Cloud Scheduler Job
+# Create Cloud Scheduler Job(Stop)
 gcloud beta scheduler jobs create pubsub shutdown-workday \
   --project <project-id> \
   --schedule '0 22 * * *' \
@@ -143,6 +143,15 @@ gcloud beta scheduler jobs create pubsub shutdown-workday \
   --message-body '{"command":"stop"}' \
   --time-zone 'Asia/Tokyo' \
   --description 'automatically stop instances'
+
+# Create Cloud Scheduler Job(Start)
+gcloud beta scheduler jobs create pubsub restart-workday \
+  --project <project-id> \
+  --schedule '0 9 * * *' \
+  --topic instance-scheduler-event \
+  --message-body '{"command":"start"}' \
+  --time-zone 'Asia/Tokyo' \
+  --description 'automatically restart instances'
 ```
 
 

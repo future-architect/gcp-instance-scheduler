@@ -29,9 +29,9 @@ import (
 // Env is cloud function environment variables
 type Env struct {
 	ProjectID    string `envconfig:"GCP_PROJECT" required:"true"`
-	SlackToken   string `envconfig:"SLACK_API_TOKEN" required:"true"`
+	SlackNotify  bool   `envconfig:"SLACK_ENABLE" required:"true"`
+	SlackToken   string `envconfig:"SLACK_API_TOKEN"`
 	SlackChannel string `envconfig:"SLACK_CHANNEL"`
-	SlackNotify  bool   `envconfig:"SLACK_ENABLE"`
 }
 
 func ReceiveEvent(ctx context.Context, msg *pubsub.Message) error {
