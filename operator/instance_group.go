@@ -125,9 +125,9 @@ func (r *InstanceGroupCall) Resize(size int64) (*model.Report, error) {
 	}
 
 	return &model.Report{
-		InstanceType:             model.InstanceGroup,
-		DoneResources:            doneRes,
-		AlreadyShutdownResources: alreadyRes,
+		InstanceType: model.InstanceGroup,
+		Dones:        doneRes,
+		Alreadies:    alreadyRes,
 	}, res
 }
 
@@ -199,9 +199,9 @@ func (r *InstanceGroupCall) Recovery() (*model.Report, error) {
 	}
 
 	return &model.Report{
-		InstanceType:             model.InstanceGroup,
-		DoneResources:            doneRes,
-		AlreadyShutdownResources: alreadyRes,
+		InstanceType: model.InstanceGroup,
+		Dones:        doneRes,
+		Alreadies:    alreadyRes,
 	}, res
 }
 

@@ -16,7 +16,7 @@
 package model
 
 import (
-	"log"
+	"fmt"
 )
 
 const (
@@ -29,23 +29,31 @@ type Report struct {
 	// InstanceGroup, ComputeEngine, SQL
 	InstanceType string
 	// shutdown resource names
-	DoneResources []string
+	Dones []string
 	// already stopped resource names
-	AlreadyShutdownResources []string
+	Alreadies []string
 	// skipped resource name
-	SkipResources []string
+	Skips []string
 }
 
-func (r *Report) Show() {
-	log.Println("[" + r.InstanceType + "]")
+func (r *Report) Show() []string {
+	var lines []string
+	lines = append(lines, "."+r.InstanceType)
 
-	log.Printf("└- Shutdown Resource: %v", len(r.DoneResources))
-	for _, resource := range r.DoneResources {
-		log.Printf("  └-- %v\n", resource)
+	lines = append(lines, fmt.Sprintf("  └- Done: %v", len(r.Dones)))
+	for _, resource := range r.Dones {
+		lines = append(lines, fmt.Sprintf("    └-- %v", resource))
 	}
 
-	log.Printf("└- Already Shutdown Resource: %v", len(r.AlreadyShutdownResources))
-	for _, resource := range r.AlreadyShutdownResources {
-		log.Printf("    └-- %v\n", resource)
+	lines = append(lines, fmt.Sprintf("  └- AlreadyDone: %v", len(r.Alreadies)))
+	for _, resource := range r.Alreadies {
+		lines = append(lines, fmt.Sprintf("    └-- %v", resource))
 	}
+
+	lines = append(lines, fmt.Sprintf("  └- Skip: %v", len(r.Alreadies)))
+	for _, resource := range r.Alreadies {
+		lines = append(lines, fmt.Sprintf("    └-- %v", resource))
+	}
+
+	return lines
 }

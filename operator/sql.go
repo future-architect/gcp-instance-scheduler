@@ -92,9 +92,9 @@ func (r *SQLCall) Stop() (*model.Report, error) {
 	}
 
 	return &model.Report{
-		InstanceType:             model.SQL,
-		DoneResources:            doneRes,
-		AlreadyShutdownResources: alreadyRes,
+		InstanceType: model.SQL,
+		Dones:        doneRes,
+		Alreadies:    alreadyRes,
 	}, res
 }
 
@@ -137,8 +137,8 @@ func (r *SQLCall) Start() (*model.Report, error) {
 	}
 
 	return &model.Report{
-		InstanceType:             model.SQL,
-		DoneResources:            doneRes,
-		AlreadyShutdownResources: alreadyRes,
+		InstanceType: model.SQL,
+		Dones:        doneRes,
+		Alreadies:    alreadyRes,
 	}, res
 }

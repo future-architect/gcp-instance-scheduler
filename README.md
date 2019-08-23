@@ -54,7 +54,7 @@ $ scheduler restart --project <your gcp project>
 #### Options
 
 You can designate project id and timeout length by using flags.
-If you use slack notification, you have to enable slack notification by adding the flag `--slackNotification`.
+If you use slack notification, you have to enable slack notification by adding the flag `--slackNotifyEnable`.
 
 ```
 >scheduler --help
@@ -80,7 +80,7 @@ Following variables are used when you did not designate these flags.
 |#  |flags                  |variables       |
 |---|-----------------------|----------------|
 | 1 |project(p)             |GCP_PROJECT     |
-| 2 |slackAPIToken          |SLACK_API_TOKEN |
+| 2 |slackToken          |SLACK_API_TOKEN |
 | 3 |slackChannel           |SLACK_CHANNEL   |
 
 
