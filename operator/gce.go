@@ -92,9 +92,9 @@ func (r *ComputeEngineCall) Stop() (*model.Report, error) {
 	}
 
 	return &model.Report{
-		InstanceType:             model.ComputeEngine,
-		DoneResources:            doneRes,
-		AlreadyShutdownResources: alreadyRes,
+		InstanceType: model.ComputeEngine,
+		Dones:        doneRes,
+		Alreadies:    alreadyRes,
 	}, res
 }
 
@@ -133,9 +133,9 @@ func (r *ComputeEngineCall) Start() (*model.Report, error) {
 	}
 
 	return &model.Report{
-		InstanceType:             model.ComputeEngine,
-		DoneResources:            doneRes,
-		AlreadyShutdownResources: alreadyRes,
+		InstanceType: model.ComputeEngine,
+		Dones:        doneRes,
+		Alreadies:    alreadyRes,
 	}, res
 }
 

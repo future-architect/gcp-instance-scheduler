@@ -17,9 +17,9 @@ package scheduler
 
 import (
 	"log"
+	"strings"
 
 	"github.com/future-architect/gcp-instance-scheduler/model"
-	"github.com/future-architect/gcp-instance-scheduler/notice"
 	"github.com/future-architect/gcp-instance-scheduler/operator"
 	"github.com/future-architect/gcp-instance-scheduler/report"
 
@@ -68,7 +68,7 @@ func Shutdown(ctx context.Context, op *Options) error {
 		log.Printf("Some error occured in stopping gce instances: %v", err)
 	}
 	result = append(result, rpt)
-	rpt.Show()
+	log.Println(strings.Join(rpt.Show(), "\n"))
 
 	rpt, err = operator.ComputeEngine(ctx, projectID).Filter(Label, true).Stop()
 	if err != nil {
@@ -76,7 +76,7 @@ func Shutdown(ctx context.Context, op *Options) error {
 		log.Printf("Some error occured in stopping gce instances: %v", err)
 	}
 	result = append(result, rpt)
-	rpt.Show()
+	log.Println(strings.Join(rpt.Show(), "\n"))
 
 	rpt, err = operator.SQL(ctx, projectID).Filter(Label, true).Stop()
 	if err != nil {
@@ -84,25 +84,21 @@ func Shutdown(ctx context.Context, op *Options) error {
 		log.Printf("Some error occured in stopping sql instances: %v", err)
 	}
 	result = append(result, rpt)
-	rpt.Show()
+	log.Println(strings.Join(rpt.Show(), "\n"))
 
 	if !op.SlackEnable {
 		log.Printf("done.")
 		return errorLog
 	}
 
-	n := notice.NewSlackNotifier(op.SlackToken, op.SlackChannel)
-	parentTS, err := n.PostReport(report.NewResourceCountReport(result, projectID))
+	_, err = report.NewSlackNotifier(op.SlackToken, op.SlackChannel).Post(report.Report{
+		ProjectID: projectID,
+		Reports:   result,
+		Command:   "Shutdown",
+	})
 	if err != nil {
 		log.Println("error in Slack notification:", err)
 		return multierror.Append(errorLog, err)
-	}
-
-	for _, r := range report.NewDetailReports(result) {
-		if err := n.PostReportThread(parentTS, r); err != nil {
-			errorLog = multierror.Append(errorLog, err)
-			log.Println("Error in Slack notification (thread):", err)
-		}
 	}
 
 	log.Printf("done.")
@@ -121,7 +117,7 @@ func Restart(ctx context.Context, op *Options) error {
 		log.Printf("Some error occurred in starting instances group: %v\n", err)
 	}
 	result = append(result, rpt)
-	rpt.Show()
+	log.Println(strings.Join(rpt.Show(), "\n"))
 
 	rpt, err = operator.ComputeEngine(ctx, projectID).Filter(Label, true).Start()
 	if err != nil {
@@ -129,7 +125,7 @@ func Restart(ctx context.Context, op *Options) error {
 		log.Printf("Some error occurred in starting compute engine: %v\n", err)
 	}
 	result = append(result, rpt)
-	rpt.Show()
+	log.Println(strings.Join(rpt.Show(), "\n"))
 
 	rpt, err = operator.SQL(ctx, projectID).Filter(Label, true).Start()
 	if err != nil {
@@ -137,25 +133,21 @@ func Restart(ctx context.Context, op *Options) error {
 		log.Printf("Some error occurred in starting SQL: %v\n", err)
 	}
 	result = append(result, rpt)
-	rpt.Show()
+	log.Println(strings.Join(rpt.Show(), "\n"))
 
 	if !op.SlackEnable {
 		log.Printf("done.")
 		return errorLog
 	}
 
-	n := notice.NewSlackNotifier(op.SlackToken, op.SlackChannel)
-	parentTS, err := n.PostReport(report.NewResourceCountReport(result, projectID))
+	_, err = report.NewSlackNotifier(op.SlackToken, op.SlackChannel).Post(report.Report{
+		ProjectID: projectID,
+		Reports:   result,
+		Command:   "Restart",
+	})
 	if err != nil {
 		log.Println("error in Slack notification:", err)
 		return multierror.Append(errorLog, err)
-	}
-
-	for _, r := range report.NewDetailReports(result) {
-		if err := n.PostReportThread(parentTS, r); err != nil {
-			errorLog = multierror.Append(errorLog, err)
-			log.Println("Error in Slack notification (thread):", err)
-		}
 	}
 
 	log.Printf("done.")
