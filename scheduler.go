@@ -34,7 +34,7 @@ type Env struct {
 	SlackChannel string `envconfig:"SLACK_CHANNEL"`
 }
 
-func ReceiveEvent(ctx context.Context, msg *pubsub.Message) error {
+func SwitchInstanceState(ctx context.Context, msg *pubsub.Message) error {
 
 	var e Env
 	if err := envconfig.Process("", &e); err != nil {
