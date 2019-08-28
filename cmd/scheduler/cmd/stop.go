@@ -34,10 +34,10 @@ var stopCmd = &cobra.Command{
 
 func init() {
 	stopCmd.PersistentFlags().StringP("project", "p", os.Getenv("GCP_PROJECT"), "project id (default $GCP_PROJECT)")
-	stopCmd.PersistentFlags().Int("timeout", 60, "set timeout seconds")
-	stopCmd.PersistentFlags().String("slackToken", os.Getenv("SLACK_API_TOKEN"), "SlackAPI token (should enable slack notify)")
-	stopCmd.PersistentFlags().String("slackChannel", os.Getenv("SLACK_CHANNEL"), "Slack Channel name (should enable slack notify)")
+	stopCmd.PersistentFlags().StringP("slackToken", "t", os.Getenv("SLACK_API_TOKEN"), "SlackAPI token (should enable slack notify) (default $SLACK_API_TOKEN)")
+	stopCmd.PersistentFlags().StringP("slackChannel", "c", os.Getenv("SLACK_CHANNEL"), "Slack Channel name (should enable slack notify) (default SLACK_CHANNEL)")
 	stopCmd.PersistentFlags().BoolP("slackNotifyEnable", "s", false, "Enable slack notification")
+	stopCmd.PersistentFlags().Int("timeout", 60, "set timeout seconds")
 
 	rootCmd.AddCommand(stopCmd)
 }

@@ -56,23 +56,35 @@ $ scheduler restart --project <your gcp project>
 You can designate project id and timeout length by using flags.
 If you use slack notification, you have to enable slack notification by adding the flag `--slackNotifyEnable`.
 
-```
->scheduler --help
-gcp-instance-scheduler local execution entry point
+```console
+>scheduler stop --help
+stop is execution command that shutdown gcp resources that assigned target label.
 
 Usage:
-  scheduler [command]
-
-Available Commands:
-  help        Help about any command
-  restart     restart is launch shutdown gcp resource
-  stop        stop is execution command that shutdown all gcp resources that assigned target label
+  scheduler stop [flags]
 
 Flags:
-      --config string   config file (default is $HOME/.scheduler.yaml)
-  -h, --help            help for scheduler
+  -h, --help                  help for stop
+  -p, --project string        project id (default $GCP_PROJECT)
+  -c, --slackChannel string   Slack Channel name (should enable slack notify) (default SLACK_CHANNEL)
+  -s, --slackNotifyEnable     Enable slack notification
+  -t, --slackToken string     SlackAPI token (should enable slack notify) (default $SLACK_API_TOKEN)
+      --timeout int           set timeout seconds (default 60)
 
-Use "scheduler [command] --help" for more information about a command.
+
+>scheduler restart --help
+restart is launch shutdown gcp resource.
+
+Usage:
+  scheduler restart [flags]
+
+Flags:
+  -h, --help                  help for restart
+  -p, --project string        project id (default $GCP_PROJECT)
+  -c, --slackChannel string   Slack Channel name (should enable slack notify) (default SLACK_CHANNEL)
+  -s, --slackNotifyEnable     Enable slack notification
+  -t, --slackToken string     SlackAPI token (should enable slack notify) (default $SLACK_API_TOKEN)
+      --timeout int           set timeout seconds (default 60)
 ``` 
 
 Following variables are used when you did not designate these flags.
@@ -80,7 +92,7 @@ Following variables are used when you did not designate these flags.
 |#  |flags                  |variables       |
 |---|-----------------------|----------------|
 | 1 |project(p)             |GCP_PROJECT     |
-| 2 |slackToken          |SLACK_API_TOKEN |
+| 2 |slackToken             |SLACK_API_TOKEN |
 | 3 |slackChannel           |SLACK_CHANNEL   |
 
 
