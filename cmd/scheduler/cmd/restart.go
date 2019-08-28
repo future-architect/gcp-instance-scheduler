@@ -34,10 +34,10 @@ var restartCmd = &cobra.Command{
 
 func init() {
 	restartCmd.PersistentFlags().StringP("project", "p", os.Getenv("GCP_PROJECT"), "project id (default $GCP_PROJECT)")
-	restartCmd.PersistentFlags().Int("timeout", 60, "set timeout seconds")
-	restartCmd.PersistentFlags().String("slackToken", os.Getenv("SLACK_API_TOKEN"), "SlackAPI token (should enable slack notify)")
-	restartCmd.PersistentFlags().String("slackChannel", os.Getenv("SLACK_CHANNEL"), "Slack Channel name (should enable slack notify)")
+	restartCmd.PersistentFlags().StringP("slackToken", "t", os.Getenv("SLACK_API_TOKEN"), "SlackAPI token (should enable slack notify) (default $SLACK_API_TOKEN)")
+	restartCmd.PersistentFlags().StringP("slackChannel", "c", os.Getenv("SLACK_CHANNEL"), "Slack Channel name (should enable slack notify) (default SLACK_CHANNEL)")
 	restartCmd.PersistentFlags().BoolP("slackNotifyEnable", "s", false, "Enable slack notification")
+	restartCmd.PersistentFlags().Int("timeout", 60, "set timeout seconds")
 
 	rootCmd.AddCommand(restartCmd)
 }

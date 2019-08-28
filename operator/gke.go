@@ -100,7 +100,12 @@ func GetOriginalNodePoolSize(ctx context.Context, projectID string, targetLabel 
 	for _, cluster := range filter(clusters.Clusters, targetLabel, "true") {
 		labels := cluster.ResourceLabels
 		for _, nodePool := range cluster.NodePools {
-			size, err := strconv.Atoi(labels["restore-size-"+nodePool.Name])
+			restoreSize, ok := labels["restore-size-"+nodePool.Name]
+			if !ok {
+				continue
+			}
+
+			size, err := strconv.Atoi(restoreSize)
 			if err != nil {
 				return nil, errors.New("label: " + "restore-size-" + nodePool.Name + " value is not number format?")
 			}
