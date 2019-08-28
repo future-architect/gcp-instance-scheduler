@@ -66,25 +66,28 @@ func Shutdown(ctx context.Context, op *Options) error {
 	if err != nil {
 		errorLog = multierror.Append(errorLog, err)
 		log.Printf("Some error occured in stopping gce instances: %v", err)
+	} else {
+		result = append(result, rpt)
+		log.Println(strings.Join(rpt.Show(), "\n"))
 	}
-	result = append(result, rpt)
-	log.Println(strings.Join(rpt.Show(), "\n"))
 
 	rpt, err = operator.ComputeEngine(ctx, projectID).Filter(Label, true).Stop()
 	if err != nil {
 		errorLog = multierror.Append(errorLog, err)
 		log.Printf("Some error occured in stopping gce instances: %v", err)
+	} else {
+		result = append(result, rpt)
+		log.Println(strings.Join(rpt.Show(), "\n"))
 	}
-	result = append(result, rpt)
-	log.Println(strings.Join(rpt.Show(), "\n"))
 
 	rpt, err = operator.SQL(ctx, projectID).Filter(Label, true).Stop()
 	if err != nil {
 		errorLog = multierror.Append(errorLog, err)
 		log.Printf("Some error occured in stopping sql instances: %v", err)
+	} else {
+		result = append(result, rpt)
+		log.Println(strings.Join(rpt.Show(), "\n"))
 	}
-	result = append(result, rpt)
-	log.Println(strings.Join(rpt.Show(), "\n"))
 
 	if !op.SlackEnable {
 		log.Printf("done.")
@@ -115,26 +118,28 @@ func Restart(ctx context.Context, op *Options) error {
 	if err != nil {
 		errorLog = multierror.Append(errorLog, err)
 		log.Printf("Some error occurred in starting SQL: %v\n", err)
+	} else {
+		result = append(result, rpt)
+		log.Println(strings.Join(rpt.Show(), "\n"))
 	}
-
-	result = append(result, rpt)
-	log.Println(strings.Join(rpt.Show(), "\n"))
 
 	rpt, err = operator.ComputeEngine(ctx, projectID).Filter(Label, true).Start()
 	if err != nil {
 		errorLog = multierror.Append(errorLog, err)
 		log.Printf("Some error occurred in starting compute engine: %v\n", err)
+	} else {
+		result = append(result, rpt)
+		log.Println(strings.Join(rpt.Show(), "\n"))
 	}
-	result = append(result, rpt)
-	log.Println(strings.Join(rpt.Show(), "\n"))
 
 	rpt, err = operator.InstanceGroup(ctx, projectID).Filter(Label, true).Recovery()
 	if err != nil {
 		errorLog = multierror.Append(errorLog, err)
 		log.Printf("Some error occurred in starting instances group: %v\n", err)
+	} else {
+		result = append(result, rpt)
+		log.Println(strings.Join(rpt.Show(), "\n"))
 	}
-	result = append(result, rpt)
-	log.Println(strings.Join(rpt.Show(), "\n"))
 
 	if !op.SlackEnable {
 		log.Printf("done.")
