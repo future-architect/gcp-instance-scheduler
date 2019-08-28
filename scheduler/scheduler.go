@@ -111,11 +111,12 @@ func Restart(ctx context.Context, op *Options) error {
 	var errorLog error
 	var result []*model.Report
 
-	rpt, err := operator.InstanceGroup(ctx, projectID).Filter(Label, true).Recovery()
+	rpt, err := operator.SQL(ctx, projectID).Filter(Label, true).Start()
 	if err != nil {
 		errorLog = multierror.Append(errorLog, err)
-		log.Printf("Some error occurred in starting instances group: %v\n", err)
+		log.Printf("Some error occurred in starting SQL: %v\n", err)
 	}
+
 	result = append(result, rpt)
 	log.Println(strings.Join(rpt.Show(), "\n"))
 
@@ -127,10 +128,10 @@ func Restart(ctx context.Context, op *Options) error {
 	result = append(result, rpt)
 	log.Println(strings.Join(rpt.Show(), "\n"))
 
-	rpt, err = operator.SQL(ctx, projectID).Filter(Label, true).Start()
+	rpt, err = operator.InstanceGroup(ctx, projectID).Filter(Label, true).Recovery()
 	if err != nil {
 		errorLog = multierror.Append(errorLog, err)
-		log.Printf("Some error occurred in starting SQL: %v\n", err)
+		log.Printf("Some error occurred in starting instances group: %v\n", err)
 	}
 	result = append(result, rpt)
 	log.Println(strings.Join(rpt.Show(), "\n"))
