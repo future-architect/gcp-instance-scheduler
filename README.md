@@ -130,7 +130,7 @@ gcloud container clusters update <cluster-name> \
 
 ### Required variables
 When you want to get slack notification, please set these environment variables.
-You can get slack notification if and only if these three variables are setted.
+You can get slack notification if and only if these three variables are set.
 
 |#  |variables       |Note                               |
 |---|----------------|-----------------------------------|
@@ -138,19 +138,21 @@ You can get slack notification if and only if these three variables are setted.
 | 2 |SLACK_API_TOKEN |Slack api token                    |
 | 3 |SLACK_CHANNEL   |Slack channel name                 |
 
+### Steps
+
+As an example, start an instance between 9 and 22:00 on weekdays.
+
 ```sh
 # Deploy Cloud Function: slack notification enable
-gcloud functions deploy ReceiveEvent --project <project-id> \
-  --runtime go111 \
+gcloud functions deploy switchInstanceState --project <project-id> \
+  --entry-point SwitchInstanceState --runtime go111 \
   --trigger-topic instance-scheduler-event \
-  --set-env-vars SLACK_ENABLE=true \
-  --set-env-vars SLACK_API_TOKEN=<slack-api-token> \
-  --set-env-vars SLACK_CHANNEL=<slack-channel-name>
+  --set-env-vars SLACK_ENABLE=false
 
 # Create Cloud Scheduler Job(Stop)
 gcloud beta scheduler jobs create pubsub shutdown-workday \
   --project <project-id> \
-  --schedule '0 22 * * *' \
+  --schedule '0 22 * * 1-5' \
   --topic instance-scheduler-event \
   --message-body '{"command":"stop"}' \
   --time-zone 'Asia/Tokyo' \
@@ -159,7 +161,7 @@ gcloud beta scheduler jobs create pubsub shutdown-workday \
 # Create Cloud Scheduler Job(Start)
 gcloud beta scheduler jobs create pubsub restart-workday \
   --project <project-id> \
-  --schedule '0 9 * * *' \
+  --schedule '0 9 * * 1-5' \
   --topic instance-scheduler-event \
   --message-body '{"command":"start"}' \
   --time-zone 'Asia/Tokyo' \
