@@ -63,6 +63,7 @@ func (r *InstanceGroupCall) Filter(labelName string, flag bool) *InstanceGroupCa
 	if r.error != nil {
 		return r
 	}
+	r.targetLabel = labelName
 	r.templateListCall = r.templateListCall.Filter("properties.labels." + labelName + "=true")
 	return r
 }
@@ -136,7 +137,26 @@ func (r *InstanceGroupCall) Recovery() (*model.Report, error) {
 		return nil, r.error
 	}
 
+	// add instance group name of cluster node pool to Set
+	targetInstanceGroupSet, err := r.getGKEInstanceGroup()
+	if err != nil {
+		return nil, err
+	}
+
 	templateList, err := r.templateListCall.Do()
+	if err != nil {
+		return nil, err
+	}
+
+	// add instance group name to Set
+	// shutdown target instance group is 2 pattern.
+	// 1. NodePool that belong to GKE which has target label
+	// 2. Created from Instance Template which has target label
+	for _, t := range templateList.Items {
+		targetInstanceGroupSet.Add(t.Name)
+	}
+
+	sizeMap, err := GetOriginalNodePoolSize(r.ctx, r.projectID, r.targetLabel)
 	if err != nil {
 		return nil, err
 	}
@@ -144,11 +164,6 @@ func (r *InstanceGroupCall) Recovery() (*model.Report, error) {
 	var res = r.error
 	var doneRes []string
 	var alreadyRes []string
-
-	sizeMap, err := GetOriginalNodePoolSize(r.ctx, r.projectID, r.targetLabel)
-	if err != nil {
-		return nil, err
-	}
 
 	for _, manager := range valuesIG(r.instanceGroupList.Items) {
 		// get manager zone name
@@ -159,20 +174,8 @@ func (r *InstanceGroupCall) Recovery() (*model.Report, error) {
 		tmpUrlElements := strings.Split(manager.InstanceTemplate, "/")
 		instanceTemplateName := tmpUrlElements[len(tmpUrlElements)-1] // ex) gke-standard-cluster-1-default-pool-f789c8df
 
-		// add instance group name of cluster node pool to Set
-		instanceGroupSet, err := r.getGKEInstanceGroup()
-		if err != nil {
-			res = multierror.Append(res, err)
-			continue
-		}
-
-		// add instance group name to Set
-		for _, t := range templateList.Items {
-			instanceGroupSet.Add(t.Name)
-		}
-
 		// compare filtered instance template name and manager which is created by template
-		if instanceGroupSet.Contains(instanceTemplateName) {
+		if targetInstanceGroupSet.Contains(instanceTemplateName) {
 			if !manager.Status.IsStable {
 				continue
 			}
