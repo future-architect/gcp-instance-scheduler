@@ -149,6 +149,7 @@ gcloud functions deploy switchInstanceState --project <project-id> \
   --trigger-topic instance-scheduler-event \
   --set-env-vars SLACK_ENABLE=false
 
+
 # Create Cloud Scheduler Job(Stop)
 gcloud beta scheduler jobs create pubsub shutdown-workday \
   --project <project-id> \

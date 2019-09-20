@@ -49,7 +49,13 @@ func (r *SQLCall) Filter(labelName string, flag bool) *SQLCall {
 	if r.error != nil {
 		return r
 	}
-	r.call = r.call.Filter("userLabels." + labelName + "=true")
+
+	// Document is below format but must add "settings". GCP bugs??
+	// https://cloud.google.com/sql/docs/mysql/label-instance#filtering > CURL
+	// curl --header "Authorization: Bearer ${ACCESS_TOKEN}" \
+	//     -X GET \
+	//     https://www.googleapis.com/sql/v1beta4/projects/[PROJECT_ID]/instances/list?filter=userLabels.[KEY1_NAME]:[KEY1_VALUE]%20userLabels.[KEY2_NAME]:[KEY2_VALUE]
+	r.call = r.call.Filter("settings.userLabels." + labelName + "=true")
 	return r
 }
 
