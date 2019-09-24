@@ -22,6 +22,7 @@ import (
 const (
 	ComputeEngine = "ComputeEngine"
 	InstanceGroup = "InstanceGroup"
+	GKENodePool   = "GKENodePool"
 	SQL           = "SQL"
 )
 
@@ -50,8 +51,8 @@ func (r *Report) Show() []string {
 		lines = append(lines, fmt.Sprintf("    └-- %v", resource))
 	}
 
-	lines = append(lines, fmt.Sprintf("  └- Skip: %v", len(r.Alreadies)))
-	for _, resource := range r.Alreadies {
+	lines = append(lines, fmt.Sprintf("  └- Skip: %v", len(r.Skips)))
+	for _, resource := range r.Skips {
 		lines = append(lines, fmt.Sprintf("    └-- %v", resource))
 	}
 

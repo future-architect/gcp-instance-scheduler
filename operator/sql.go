@@ -45,7 +45,7 @@ func SQL(ctx context.Context, projectID string) *SQLCall {
 	}
 }
 
-func (r *SQLCall) Filter(labelName string, flag bool) *SQLCall {
+func (r *SQLCall) Filter(labelName, value string) *SQLCall {
 	if r.error != nil {
 		return r
 	}
@@ -55,7 +55,7 @@ func (r *SQLCall) Filter(labelName string, flag bool) *SQLCall {
 	// curl --header "Authorization: Bearer ${ACCESS_TOKEN}" \
 	//     -X GET \
 	//     https://www.googleapis.com/sql/v1beta4/projects/[PROJECT_ID]/instances/list?filter=userLabels.[KEY1_NAME]:[KEY1_VALUE]%20userLabels.[KEY2_NAME]:[KEY2_VALUE]
-	r.call = r.call.Filter("settings.userLabels." + labelName + "=true")
+	r.call = r.call.Filter("settings.userLabels." + labelName + "=" + value)
 	return r
 }
 
