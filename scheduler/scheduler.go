@@ -57,12 +57,25 @@ func Shutdown(ctx context.Context, op *Options) error {
 		log.Printf("Error in setting labels on GKE cluster: %v", err)
 	}
 
-	if err := operator.ShowClusterStatus(ctx, projectID, Label); err != nil {
+	rpt, err := operator.GKENodePool(ctx, projectID).Filter(Label, "true").Resize(0)
+	if err != nil {
 		errorLog = multierror.Append(errorLog, err)
-		log.Printf("Error in stopping GKE: %v", err)
+		log.Printf("Some error occured in stopping gke node pool: %v", err)
+	} else {
+		result = append(result, rpt)
+		log.Println(strings.Join(rpt.Show(), "\n"))
 	}
 
-	rpt, err := operator.InstanceGroup(ctx, projectID).Filter(Label, true).Resize(0)
+	rpt, err = operator.InstanceGroup(ctx, projectID).Filter(Label, "true").Resize(0)
+	if err != nil {
+		errorLog = multierror.Append(errorLog, err)
+		log.Printf("Some error occured in stopping instances group: %v", err)
+	} else {
+		result = append(result, rpt)
+		log.Println(strings.Join(rpt.Show(), "\n"))
+	}
+
+	rpt, err = operator.ComputeEngine(ctx, projectID).Filter(Label, "true").Stop()
 	if err != nil {
 		errorLog = multierror.Append(errorLog, err)
 		log.Printf("Some error occured in stopping gce instances: %v", err)
@@ -71,16 +84,7 @@ func Shutdown(ctx context.Context, op *Options) error {
 		log.Println(strings.Join(rpt.Show(), "\n"))
 	}
 
-	rpt, err = operator.ComputeEngine(ctx, projectID).Filter(Label, true).Stop()
-	if err != nil {
-		errorLog = multierror.Append(errorLog, err)
-		log.Printf("Some error occured in stopping gce instances: %v", err)
-	} else {
-		result = append(result, rpt)
-		log.Println(strings.Join(rpt.Show(), "\n"))
-	}
-
-	rpt, err = operator.SQL(ctx, projectID).Filter(Label, true).Stop()
+	rpt, err = operator.SQL(ctx, projectID).Filter(Label, "true").Stop()
 	if err != nil {
 		errorLog = multierror.Append(errorLog, err)
 		log.Printf("Some error occured in stopping sql instances: %v", err)
@@ -114,7 +118,7 @@ func Restart(ctx context.Context, op *Options) error {
 	var errorLog error
 	var result []*model.Report
 
-	rpt, err := operator.SQL(ctx, projectID).Filter(Label, true).Start()
+	rpt, err := operator.SQL(ctx, projectID).Filter(Label, "true").Start()
 	if err != nil {
 		errorLog = multierror.Append(errorLog, err)
 		log.Printf("Some error occurred in starting SQL: %v\n", err)
@@ -123,7 +127,7 @@ func Restart(ctx context.Context, op *Options) error {
 		log.Println(strings.Join(rpt.Show(), "\n"))
 	}
 
-	rpt, err = operator.ComputeEngine(ctx, projectID).Filter(Label, true).Start()
+	rpt, err = operator.ComputeEngine(ctx, projectID).Filter(Label, "true").Start()
 	if err != nil {
 		errorLog = multierror.Append(errorLog, err)
 		log.Printf("Some error occurred in starting compute engine: %v\n", err)
@@ -132,10 +136,19 @@ func Restart(ctx context.Context, op *Options) error {
 		log.Println(strings.Join(rpt.Show(), "\n"))
 	}
 
-	rpt, err = operator.InstanceGroup(ctx, projectID).Filter(Label, true).Recovery()
+	rpt, err = operator.InstanceGroup(ctx, projectID).Filter(Label, "true").Recovery()
 	if err != nil {
 		errorLog = multierror.Append(errorLog, err)
 		log.Printf("Some error occurred in starting instances group: %v\n", err)
+	} else {
+		result = append(result, rpt)
+		log.Println(strings.Join(rpt.Show(), "\n"))
+	}
+
+	rpt, err = operator.GKENodePool(ctx, projectID).Filter(Label, "true").Recovery()
+	if err != nil {
+		errorLog = multierror.Append(errorLog, err)
+		log.Printf("Some error occurred in starting gke node pool: %v\n", err)
 	} else {
 		result = append(result, rpt)
 		log.Println(strings.Join(rpt.Show(), "\n"))

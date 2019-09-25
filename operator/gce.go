@@ -17,7 +17,6 @@ package operator
 
 import (
 	"errors"
-	"strconv"
 	"strings"
 	"time"
 
@@ -48,11 +47,11 @@ func ComputeEngine(ctx context.Context, projectID string) *ComputeEngineCall {
 	}
 }
 
-func (r *ComputeEngineCall) Filter(labelName string, flag bool) *ComputeEngineCall {
+func (r *ComputeEngineCall) Filter(labelName, value string) *ComputeEngineCall {
 	if r.error != nil {
 		return r
 	}
-	r.call = r.call.Filter("labels." + labelName + "=" + strconv.FormatBool(flag))
+	r.call = r.call.Filter("labels." + labelName + "=" + value)
 	return r
 }
 

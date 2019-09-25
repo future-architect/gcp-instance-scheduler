@@ -16,21 +16,20 @@
 package operator
 
 import (
-	"strings"
-	"time"
-
 	set "github.com/deckarep/golang-set"
 	"github.com/future-architect/gcp-instance-scheduler/model"
 	"github.com/hashicorp/go-multierror"
 	"golang.org/x/net/context"
 	"google.golang.org/api/compute/v1"
-	"google.golang.org/api/container/v1"
+	"strings"
+	"time"
 )
 
 type InstanceGroupCall struct {
 	instanceGroupList *compute.InstanceGroupManagerAggregatedList
 	templateListCall  *compute.InstanceTemplatesListCall
 	targetLabel       string
+	targetLabelValue  string
 	projectID         string
 	error             error
 	s                 *compute.Service
@@ -59,12 +58,13 @@ func InstanceGroup(ctx context.Context, projectID string) *InstanceGroupCall {
 	}
 }
 
-func (r *InstanceGroupCall) Filter(labelName string, flag bool) *InstanceGroupCall {
+func (r *InstanceGroupCall) Filter(labelName, value string) *InstanceGroupCall {
 	if r.error != nil {
 		return r
 	}
 	r.targetLabel = labelName
-	r.templateListCall = r.templateListCall.Filter("properties.labels." + labelName + "=true")
+	r.targetLabelValue = value
+	r.templateListCall = r.templateListCall.Filter("properties.labels." + labelName + "=" + value)
 	return r
 }
 
@@ -91,14 +91,8 @@ func (r *InstanceGroupCall) Resize(size int64) (*model.Report, error) {
 		tmpUrlElements := strings.Split(manager.InstanceTemplate, "/")
 		managerTemplate := tmpUrlElements[len(tmpUrlElements)-1]
 
-		// add instance group name of cluster node pool to Set
-		instanceGroupSet, err := r.getGKEInstanceGroup()
-		if err != nil {
-			res = multierror.Append(res, err)
-			continue
-		}
-
 		// add instance group name to Set
+		instanceGroupSet := set.NewSet()
 		for _, t := range templateList.Items {
 			instanceGroupSet.Add(t.Name)
 		}
@@ -137,26 +131,19 @@ func (r *InstanceGroupCall) Recovery() (*model.Report, error) {
 		return nil, r.error
 	}
 
-	// add instance group name of cluster node pool to Set
-	targetInstanceGroupSet, err := r.getGKEInstanceGroup()
-	if err != nil {
-		return nil, err
-	}
-
 	templateList, err := r.templateListCall.Do()
 	if err != nil {
 		return nil, err
 	}
 
 	// add instance group name to Set
-	// shutdown target instance group is 2 pattern.
-	// 1. NodePool that belong to GKE which has target label
-	// 2. Created from Instance Template which has target label
+	// NodePool that belong to GKE which has target label
+	targetInstanceGroupSet := set.NewSet()
 	for _, t := range templateList.Items {
 		targetInstanceGroupSet.Add(t.Name)
 	}
 
-	sizeMap, err := GetOriginalNodePoolSize(r.ctx, r.projectID, r.targetLabel)
+	sizeMap, err := GetOriginalNodePoolSize(r.ctx, r.projectID, r.targetLabel, r.targetLabelValue)
 	if err != nil {
 		return nil, err
 	}
@@ -208,33 +195,6 @@ func (r *InstanceGroupCall) Recovery() (*model.Report, error) {
 	}, res
 }
 
-// get target GKE instance group Set
-func (r *InstanceGroupCall) getGKEInstanceGroup() (set.Set, error) {
-	s, err := container.NewService(r.ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	// get all clusters list
-	clusters, err := container.NewProjectsLocationsClustersService(s).List("projects/" + r.projectID + "/locations/-").Do()
-	if err != nil {
-		return nil, err
-	}
-
-	res := set.NewSet()
-	for _, cluster := range filter(clusters.Clusters, r.targetLabel, "true") {
-		for _, nodePool := range cluster.NodePools {
-			for _, gkeInstanceGroup := range nodePool.InstanceGroupUrls {
-				tmpUrlElements := strings.Split(gkeInstanceGroup, "/")
-				managerTemplate := tmpUrlElements[len(tmpUrlElements)-1]
-				// remove suffix(*-grp)
-				res.Add(managerTemplate[:len(managerTemplate)-4])
-			}
-		}
-	}
-	return res, nil
-}
-
 // create instance group manager list
 func valuesIG(m map[string]compute.InstanceGroupManagersScopedList) []*compute.InstanceGroupManager {
 	var res []*compute.InstanceGroupManager
@@ -243,21 +203,6 @@ func valuesIG(m map[string]compute.InstanceGroupManagersScopedList) []*compute.I
 			continue
 		}
 		res = append(res, managerList.InstanceGroupManagers...)
-	}
-	return res
-}
-
-// grep target cluster and create target cluster list
-func filter(l []*container.Cluster, label string, value string) []*container.Cluster {
-	if label == "" { //TODO Temp impl
-		return l
-	}
-
-	var res []*container.Cluster
-	for _, cluster := range l {
-		if cluster.ResourceLabels[label] == value {
-			res = append(res, cluster)
-		}
 	}
 	return res
 }
