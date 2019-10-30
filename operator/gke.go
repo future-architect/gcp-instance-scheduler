@@ -213,43 +213,8 @@ func (r *GKENodePoolCall) getGKEInstanceGroup() (set.Set, error) {
 	return res, nil
 }
 
-/*
-func SetLabelNodePoolSize(ctx context.Context, projectID string, targetLabel string) error {
-	s, err := container.NewService(ctx)
-	if err != nil {
-		return err
-	}
 
-	// get all clusters list
-	clusters, err := container.NewProjectsLocationsClustersService(s).List("projects/" + projectID + "/locations/-").Do()
-	if err != nil {
-		return err
-	}
 
-	// filtering with target label
-	for _, cluster := range filter(clusters.Clusters, targetLabel, "true") {
-		labels := cluster.ResourceLabels
-		for _, nodePool := range cluster.NodePools {
-			nodeSizeLabel := "restore-size-" + nodePool.Name
-			labels[nodeSizeLabel] = strconv.FormatInt(nodePool.InitialNodeCount, 10)
-		}
-
-		parseRegion := strings.Split(cluster.Location, "/")
-		region := parseRegion[len(parseRegion)-1]
-		name := "projects/" + projectID + "/locations/" + region + "/clusters/" + cluster.Name
-		req := &container.SetLabelsRequest{
-			ResourceLabels: labels,
-		}
-
-		_, err := container.NewProjectsLocationsClustersService(s).SetResourceLabels(name, req).Do()
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-*/
 
 // GetOriginalNodePoolSize returns map that key=instanceGroupName and value=originalSize
 func GetOriginalNodePoolSize(ctx context.Context, projectID, targetLabel, labelValue string) (map[string]int64, error) {
