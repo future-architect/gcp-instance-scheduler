@@ -213,6 +213,7 @@ func (r *GKENodePoolCall) getGKEInstanceGroup() (set.Set, error) {
 	return res, nil
 }
 
+/*
 func SetLabelNodePoolSize(ctx context.Context, projectID string, targetLabel string) error {
 	s, err := container.NewService(ctx)
 	if err != nil {
@@ -248,6 +249,7 @@ func SetLabelNodePoolSize(ctx context.Context, projectID string, targetLabel str
 
 	return nil
 }
+*/
 
 // GetOriginalNodePoolSize returns map that key=instanceGroupName and value=originalSize
 func GetOriginalNodePoolSize(ctx context.Context, projectID, targetLabel, labelValue string) (map[string]int64, error) {
