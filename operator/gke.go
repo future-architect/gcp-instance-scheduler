@@ -27,6 +27,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"regexp"
 )
 
 type GKENodePoolCall struct {
@@ -213,7 +214,44 @@ func (r *GKENodePoolCall) getGKEInstanceGroup() (set.Set, error) {
 	return res, nil
 }
 
-
+func SetLableIfNoLabel(ctx context.Context, projectID, targetLabel string) error {
+	s, err := container.NewService(ctx)
+	if err != nil {
+		return err
+	}
+	currentNodeSize, err := GetCurrentNodeCount(ctx, projectID, targetLabel)
+	if err != nil {
+		return err
+	}
+	// get all clusters list
+	clusters, err := container.NewProjectsLocationsClustersService(s).List("projects/" + projectID + "/locations/-").Do()
+	if err != nil {
+		return err
+	}
+	for _, cluster := range filter(clusters.Clusters, targetLabel, "true") {
+		labels := cluster.ResourceLabels
+		for _, nodePool := range cluster.NodePools {
+			nodeSizeLabel := "restore-size-"+nodePool.Name
+			_, ok := labels[nodeSizeLabel]
+			if !ok {
+				// set new label
+				labels[nodeSizeLabel] = strconv.FormatInt(currentNodeSize[nodePool.Name], 10)
+			}
+		}
+		parseRegion := strings.Split(cluster.Location, "/")
+		region := parseRegion[len(parseRegion)-1]
+		name := "projects/" + projectID + "/locations/" + region + "/clusters/" + cluster.Name
+		req := &container.SetLabelsRequest{
+			ResourceLabels: labels,
+		}
+		// update labels
+		_, err := container.NewProjectsLocationsClustersService(s).SetResourceLabels(name, req).Do()
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
 
 
 // GetOriginalNodePoolSize returns map that key=instanceGroupName and value=originalSize
@@ -254,6 +292,49 @@ func GetOriginalNodePoolSize(ctx context.Context, projectID, targetLabel, labelV
 		}
 	}
 
+	return result, nil
+}
+
+// GetCurrentNodeCount returns map that key=NodePoolName and value=currentSize
+func GetCurrentNodeCount(ctx context.Context, projectID, targetLabel string) (map[string]int64, error) {
+	s, err := container.NewService(ctx)
+	if err != nil {
+		return nil, err
+	}
+	computeService, err := compute.NewService(ctx)
+	if err != nil {
+		return nil, err
+	}
+	// get all clusters list
+	clusters, err := container.NewProjectsLocationsClustersService(s).List("projects/" + projectID + "/locations/-").Do()
+	if err != nil {
+		return nil, err
+	}
+
+	result := make(map[string]int64)
+
+	reZone := regexp.MustCompile(".*/zones/")
+	reInstance := regexp.MustCompile(".*/instanceGroupManagers/")
+	reEtc := regexp.MustCompile("/.*")
+
+	for _, cluster := range filter(clusters.Clusters, targetLabel, "true") {
+		for _, nodePool := range cluster.NodePools {
+			// nodePool.InstanceGroupUrls's format is below
+			// ["https://www.googleapis.com/compute/v1/projects/<projectID>/zones/<zone1>/instanceGroupManagers/gke-test-scheduler-2-default-pool-2b19b588-grp", 
+			//  "https://www.googleapis.com/compute/v1/projects/<projectID>/zones/<zone2>/instanceGroupManagers/gke-test-scheduler-2-default-pool-2b19b588-grp",
+			//  "https://www.googleapis.com/compute/v1/projects/<projectID>/zones/<zone3>/instanceGroupManagers/gke-test-scheduler-2-default-pool-2b19b588-grp"]
+
+			zone := reZone.ReplaceAllString(nodePool.InstanceGroupUrls[0], "")//"<zone1>/instanceGroupManagers/gke-test-scheduler-2-default-pool-2b19b588-grp"
+			zone = reEtc.ReplaceAllString(zone, "")//"<zone1>
+			instanceGroup := reInstance.ReplaceAllString(nodePool.InstanceGroupUrls[0], "")
+			resp, err := computeService.InstanceGroups.Get(projectID, zone, instanceGroup).Context(ctx).Do()
+			if err != nil {
+				return nil, err
+			}
+			size := resp.Size
+			result[nodePool.Name] = size
+		}
+	}
 	return result, nil
 }
 
