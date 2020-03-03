@@ -52,11 +52,11 @@ func Shutdown(ctx context.Context, op *Options) error {
 	var errorLog error
 	var result []*model.Report
 
-	if err := operator.SetLabelNodePoolSize(ctx, projectID, Label); err != nil {
+
+	if err := operator.SetLableIfNoLabel(ctx, projectID, Label); err != nil {
 		errorLog = multierror.Append(errorLog, err)
 		log.Printf("Error in setting labels on GKE cluster: %v", err)
 	}
-
 	rpt, err := operator.GKENodePool(ctx, projectID).Filter(Label, "true").Resize(0)
 	if err != nil {
 		errorLog = multierror.Append(errorLog, err)

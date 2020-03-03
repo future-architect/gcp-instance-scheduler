@@ -120,7 +120,7 @@ gcloud beta sql instances patch <insntance-name> \
 gcloud container clusters update <cluster-name> \
   --project <project-id> \
   --zone <cluster-master-node-zone> \
-  --update-labels state-scheduler=true
+  --update-labels state-scheduler=true,restore-size-<node-pool-name>=<node-size>
 ```
 
 
