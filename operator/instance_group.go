@@ -42,7 +42,7 @@ func InstanceGroup(ctx context.Context, projectID string) *InstanceGroupCall {
 		return &InstanceGroupCall{error: err}
 	}
 
-	// get all instance group mangers list
+	// get all instance group managers list
 	managerList, err := compute.NewInstanceGroupManagersService(s).AggregatedList(projectID).Do()
 	if err != nil {
 		return &InstanceGroupCall{error: err}
