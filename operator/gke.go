@@ -283,7 +283,7 @@ func GetOriginalNodePoolSize(ctx context.Context, projectID, targetLabel, labelV
 			}
 
 			for _, url := range nodePool.InstanceGroupUrls {
-				// u;rl is below format
+				// url is below format
 				// e.g. https://www.googleapis.com/compute/v1/projects/{ProjectID}/zones/us-central1-a/instanceGroupManagers/gke-standard-cluster-1-default-pool-1234abcd-grp
 				urlSplit := strings.Split(url, "/")
 				instanceGroupName := urlSplit[len(urlSplit)-1]

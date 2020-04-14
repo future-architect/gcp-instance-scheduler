@@ -38,7 +38,7 @@ func SwitchInstanceState(ctx context.Context, msg *pubsub.Message) error {
 
 	var e Env
 	if err := envconfig.Process("", &e); err != nil {
-		log.Printf("Error at the fucntion 'DecodeMessage': %v", err)
+		log.Printf("Error at the function 'DecodeMessage': %v", err)
 		return err
 	}
 	if e.SlackNotify && (e.SlackToken == "" || e.SlackChannel == "") {

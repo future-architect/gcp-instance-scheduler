@@ -22,7 +22,7 @@ var restartCmd = &cobra.Command{
 
 		log.Printf("Project ID: %v", projectID)
 		if projectID == "" {
-			return errors.New("not found project variable")
+			return errors.New("project variable not found")
 		}
 
 		ctx, cancel := context.WithTimeout(context.Background(), time.Duration(timeout)*time.Second)
